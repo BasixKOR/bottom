@@ -21,7 +21,8 @@ use hashbrown::HashMap;
 use crate::data_harvester::batteries;
 use crate::{
     data_harvester::{cpu, disks, memory, network, processes::ProcessHarvest, temperature, Data},
-    utils::gen_util::{get_decimal_bytes, GIGA_LIMIT},
+    utils::data_prefixes::*,
+    utils::gen_util::get_decimal_bytes,
     Pid,
 };
 
@@ -204,7 +205,7 @@ impl DataCollection {
     }
 
     pub fn eat_data(&mut self, harvested_data: Box<Data>) {
-        let harvested_time = harvested_data.last_collection_time;
+        let harvested_time = harvested_data.collection_time;
         let mut new_entry = TimedData::default();
 
         // Network
@@ -318,7 +319,7 @@ impl DataCollection {
         cpu.iter()
             .for_each(|cpu| new_entry.cpu_data.push(cpu.cpu_usage));
 
-        self.cpu_harvest = cpu.to_vec();
+        self.cpu_harvest = cpu;
     }
 
     fn eat_load_avg(&mut self, load_avg: cpu::LoadAvgHarvest, new_entry: &mut TimedData) {
@@ -328,14 +329,12 @@ impl DataCollection {
     }
 
     fn eat_temp(&mut self, temperature_sensors: Vec<temperature::TempHarvest>) {
-        // TODO: [PO] To implement
-        self.temp_harvest = temperature_sensors.to_vec();
+        self.temp_harvest = temperature_sensors;
     }
 
     fn eat_disks(
         &mut self, disks: Vec<disks::DiskHarvest>, io: disks::IoHarvest, harvested_time: Instant,
     ) {
-        // TODO: [PO] To implement
         let time_since_last_harvest = harvested_time
             .duration_since(self.current_instant)
             .as_secs_f64();
@@ -349,6 +348,13 @@ impl DataCollection {
                             None => device.name.split('/').last(),
                         }
                     } else {
+                        #[cfg(feature = "zfs")]
+                        if ! device.name.starts_with('/'){
+                            Some(device.name.as_str()) // use the whole zfs dataset name
+                        } else {
+                            device.name.split('/').last()
+                        }
+                        #[cfg(not(feature = "zfs"))]
                         device.name.split('/').last()
                     }
                 }
@@ -457,6 +463,6 @@ impl DataCollection {
         gpu.iter().for_each(|data| {
             new_entry.gpu_data.push(data.1.use_percent);
         });
-        self.gpu_harvest = gpu.to_vec();
+        self.gpu_harvest = gpu;
     }
 }

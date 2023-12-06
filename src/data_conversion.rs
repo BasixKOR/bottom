@@ -10,7 +10,8 @@ use crate::app::{
     AxisScaling,
 };
 use crate::components::tui_widget::time_chart::Point;
-use crate::units::data_units::DataUnit;
+use crate::utils::data_prefixes::*;
+use crate::utils::data_units::DataUnit;
 use crate::utils::gen_util::*;
 use crate::widgets::{DiskWidgetData, TempWidgetData};
 
@@ -26,7 +27,6 @@ pub enum BatteryDuration {
 
 #[derive(Default, Debug)]
 pub struct ConvertedBatteryData {
-    pub battery_name: String,
     pub charge_percentage: f64,
     pub watt_consumption: String,
     pub battery_duration: BatteryDuration,
@@ -520,9 +520,7 @@ pub fn convert_battery_harvest(current_data: &DataCollection) -> Vec<ConvertedBa
     current_data
         .battery_harvest
         .iter()
-        .enumerate()
-        .map(|(itx, battery_harvest)| ConvertedBatteryData {
-            battery_name: format!("Battery {}", itx),
+        .map(|battery_harvest| ConvertedBatteryData {
             charge_percentage: battery_harvest.charge_percent,
             watt_consumption: format!("{:.2}W", battery_harvest.power_consumption_rate_watts),
             battery_duration: if let Some(secs) = battery_harvest.secs_until_empty {
@@ -549,9 +547,7 @@ pub fn convert_battery_harvest(current_data: &DataCollection) -> Vec<ConvertedBa
 }
 
 #[cfg(feature = "zfs")]
-pub fn convert_arc_labels(
-    current_data: &crate::app::data_farmer::DataCollection,
-) -> Option<(String, String)> {
+pub fn convert_arc_labels(current_data: &DataCollection) -> Option<(String, String)> {
     if current_data.arc_harvest.total_bytes > 0 {
         Some((
             format!(
@@ -575,9 +571,7 @@ pub fn convert_arc_labels(
 }
 
 #[cfg(feature = "zfs")]
-pub fn convert_arc_data_points(
-    current_data: &crate::app::data_farmer::DataCollection,
-) -> Vec<Point> {
+pub fn convert_arc_data_points(current_data: &DataCollection) -> Vec<Point> {
     let mut result: Vec<Point> = Vec::new();
     let current_time = current_data.current_instant;
 
@@ -605,9 +599,7 @@ pub struct ConvertedGpuData {
 }
 
 #[cfg(feature = "gpu")]
-pub fn convert_gpu_data(
-    current_data: &crate::app::data_farmer::DataCollection,
-) -> Option<Vec<ConvertedGpuData>> {
+pub fn convert_gpu_data(current_data: &DataCollection) -> Option<Vec<ConvertedGpuData>> {
     let current_time = current_data.current_instant;
 
     // convert points
@@ -634,7 +626,7 @@ pub fn convert_gpu_data(
     let results = current_data
         .gpu_harvest
         .iter()
-        .zip(point_vec.into_iter())
+        .zip(point_vec)
         .map(|(gpu, points)| {
             let short_name = {
                 let last_words = gpu.0.split_whitespace().rev().take(2).collect::<Vec<_>>();

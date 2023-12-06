@@ -1,6 +1,7 @@
 # Builds the following releases:
 # - Binary releases
-# - Debian releases (.deb)
+# - .deb releases
+# - .rpm releases
 # - MSI installer for Windows (.msi)
 # - Cirrus CI binaries
 #   - FreeBSD (x86_64)
@@ -25,7 +26,6 @@ env:
   CARGO_HUSKY_DONT_INSTALL_HOOKS: true
   COMPLETION_DIR: "target/tmp/bottom/completion/"
   MANPAGE_DIR: "target/tmp/bottom/manpage/"
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 # TODO: Maybe add retry job in case of timeouts?
 jobs:
@@ -44,6 +44,7 @@ jobs:
               os: "ubuntu-20.04",
               target: "x86_64-unknown-linux-gnu",
               cross: false,
+              generate-other-artifacts: true,
             }
           - {
               os: "ubuntu-20.04",
@@ -60,7 +61,7 @@ jobs:
           - {
               os: "ubuntu-20.04",
               target: "x86_64-unknown-linux-musl",
-              cross: false,
+              cross: true,
             }
           - {
               os: "ubuntu-20.04",
@@ -122,7 +123,7 @@ jobs:
             }
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
 
@@ -130,7 +131,7 @@ jobs:
         if: matrix.info.container == ''
         uses: dtolnay/rust-toolchain@b44cb146d03e8d870c57ab64b80f04586349ca5d
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.info.rust || 'stable' }}
           target: ${{ matrix.info.target }}
 
       - name: Set up Rust toolchain (non-GitHub container)
@@ -142,7 +143,7 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Build
-        uses: ClementTsang/cargo-action@v0.0.3
+        uses: ClementTsang/cargo-action@v0.0.5
         env:
           BTM_GENERATE: true
           BTM_BUILD_RELEASE_CALLER: ${{ inputs.caller }}
@@ -181,20 +182,26 @@ jobs:
           mkdir release
           mv ${{ env.ASSET }} release/
 
-      - name: Compress completion files (Linux x86-64 GNU)
-        if: matrix.info.target == 'x86_64-unknown-linux-gnu' && matrix.info.container == ''
+      - name: Compress completion files
+        if: matrix.info.generate-other-artifacts == true
         shell: bash
         run: |
           tar -C ./completion -czvf completion.tar.gz .
           mv completion.tar.gz release/
 
-      - name: Compress manpage files (Linux x86-64 GNU)
-        if: matrix.info.target == 'x86_64-unknown-linux-gnu' && matrix.info.container == ''
+      - name: Compress manpage files
+        if: matrix.info.generate-other-artifacts == true
         shell: bash
         run: |
           gzip ./manpage/btm.1
           tar -C ./manpage -czvf manpage.tar.gz .
           mv manpage.tar.gz release/
+
+      - name: Copy over .desktop file
+        if: matrix.info.generate-other-artifacts == true
+        shell: bash
+        run: |
+          cp ./desktop/bottom.desktop release/
 
       - name: Save release as artifact
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
@@ -208,7 +215,7 @@ jobs:
     runs-on: "windows-2019"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
 
@@ -217,7 +224,7 @@ jobs:
         run: Install-WindowsFeature Net-Framework-Core
 
       - name: Install wixtoolset
-        uses: crazy-max/ghaction-chocolatey@90deb87d9fbf0bb2f022b91e3bf11b4441cddda5 # 2.1.0
+        uses: crazy-max/ghaction-chocolatey@5a5864861ce2c988001531e48993aa687c51f6c8 # 2.2.0
         with:
           args: install -y wixtoolset
 
@@ -254,7 +261,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
@@ -282,14 +289,14 @@ jobs:
           path: release
 
   build-deb:
-    name: "Build Debian .deb software packages"
+    name: "Build .deb software packages"
     runs-on: "ubuntu-20.04"
     strategy:
       fail-fast: false
       matrix:
         info:
-          - { target: "x86_64-unknown-linux-gnu", cross: false, dpkg: amd64 }
-          - { target: "x86_64-unknown-linux-musl", cross: false, dpkg: amd64 }
+          - { target: "x86_64-unknown-linux-gnu", dpkg: amd64 }
+          - { target: "x86_64-unknown-linux-musl", cross: true, dpkg: amd64 }
           - {
               target: "aarch64-unknown-linux-gnu",
               cross: true,
@@ -316,26 +323,26 @@ jobs:
             }
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 1
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@b44cb146d03e8d870c57ab64b80f04586349ca5d
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.info.rust || 'stable' }}
           target: ${{ matrix.info.target }}
 
       # TODO: Could I use the previous jobs to skip this call?
       - name: Build
-        uses: ClementTsang/cargo-action@v0.0.3
+        uses: ClementTsang/cargo-action@v0.0.5
         env:
           BTM_GENERATE: true
           BTM_BUILD_RELEASE_CALLER: ${{ inputs.caller }}
         with:
           command: build
           args: --release --locked --verbose --features deploy --target ${{ matrix.info.target }}
-          use-cross: ${{ matrix.info.cross }}
+          use-cross: ${{ matrix.info.cross || false }}
           cross-version: 0.2.5
 
       - name: Move automatically generated completion/manpage
@@ -349,7 +356,7 @@ jobs:
           gzip ./manpage/btm.1
 
       - name: Build Debian release (x86-64)
-        if: matrix.info.cross == false
+        if: startsWith(matrix.info.target, 'x86_64')
         env:
           BTM_GENERATE: true
         run: |
@@ -358,7 +365,7 @@ jobs:
           cp ./target/${{ matrix.info.target }}/debian/bottom_*.deb .
 
       - name: Build Debian release (ARM)
-        if: matrix.info.cross == true
+        if: startsWith(matrix.info.target, 'x86_64') != true
         env:
           BTM_GENERATE: true
         run: |
@@ -394,6 +401,90 @@ jobs:
         run: |
           mkdir release
           mv ${{ steps.verify.outputs.DEB_FILE }} release/
+
+      - name: Save release as artifact
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          retention-days: 3
+          name: release
+          path: release
+
+  build-rpm:
+    name: "Build .rpm software packages"
+    runs-on: ubuntu-latest
+    container: ghcr.io/clementtsang/almalinux-8
+    strategy:
+      fail-fast: false
+      matrix:
+        info:
+          - { target: "x86_64-unknown-linux-gnu" }
+          - { target: "x86_64-unknown-linux-musl", cross: true }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 1
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@b44cb146d03e8d870c57ab64b80f04586349ca5d
+        with:
+          toolchain: ${{ matrix.info.rust || 'stable' }}
+          target: ${{ matrix.info.target }}
+
+      # TODO: Could I use the previous jobs to skip this call?
+      - name: Build
+        uses: ClementTsang/cargo-action@v0.0.5
+        env:
+          BTM_GENERATE: true
+          BTM_BUILD_RELEASE_CALLER: ${{ inputs.caller }}
+          CROSS_CONTAINER_IN_CONTAINER: true
+        with:
+          command: build
+          use-cross: ${{ matrix.info.cross || false }}
+          args: --release --locked --verbose --features deploy --target ${{ matrix.info.target }}
+          cross-version: 0.2.5
+
+      - name: Move automatically generated completion/manpage
+        shell: bash
+        run: |
+          mv "$COMPLETION_DIR" completion
+          mv "$MANPAGE_DIR" manpage
+
+      - name: Zip manpage
+        run: |
+          gzip ./manpage/btm.1
+
+      - name: Build rpm release
+        env:
+          BTM_GENERATE: true
+        run: |
+          cargo install cargo-generate-rpm --version 0.11.0 --locked
+          cargo generate-rpm --target ${{ matrix.info.target }}
+          cp ./target/${{ matrix.info.target }}/generate-rpm/bottom-*.rpm .
+
+      - name: Rename if it is a musl target
+        if: contains(matrix.info.target, 'musl')
+        run: |
+          TMP_NAME=$(find bottom-*.rpm)
+          mv $TMP_NAME $(echo $TMP_NAME | sed "s/bottom/bottom-musl/")
+
+      - name: Verify rpm release
+        id: verify
+        run: |
+          RPM_FILE=$(find bottom-*.rpm)
+          rpm -qip $RPM_FILE
+          echo "RPM_FILE=$RPM_FILE" >> $GITHUB_OUTPUT
+
+      - name: Delete generated rpm folder
+        run: |
+          sudo chown $USER ./target/${{ matrix.info.target }}/generate-rpm/ 2>/dev/null || true
+          rm -r ./target/${{ matrix.info.target }}/generate-rpm/
+
+      - name: Create release directory for artifact, move file
+        shell: bash
+        run: |
+          mkdir release
+          mv ${{ steps.verify.outputs.RPM_FILE }} release/
 
       - name: Save release as artifact
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2

@@ -1,14 +1,21 @@
-//! Process data collection for Windows.  Uses sysinfo.
+//! Process data collection for Windows. Uses sysinfo.
 
 use std::time::Duration;
 
-use sysinfo::{CpuExt, PidExt, ProcessExt, System, SystemExt, UserExt};
+use sysinfo::{CpuExt, PidExt, ProcessExt, SystemExt, UserExt};
 
 use super::ProcessHarvest;
 
-pub fn get_process_data(
-    sys: &System, use_current_cpu_total: bool, unnormalized_cpu: bool, total_memory: u64,
+use crate::data_harvester::DataCollector;
+
+pub fn sysinfo_process_data(
+    collector: &mut DataCollector,
 ) -> crate::utils::error::Result<Vec<ProcessHarvest>> {
+    let sys = &collector.sys;
+    let use_current_cpu_total = collector.use_current_cpu_total;
+    let unnormalized_cpu = collector.unnormalized_cpu;
+    let total_memory = collector.total_memory();
+
     let mut process_vector: Vec<ProcessHarvest> = Vec::new();
     let process_hashmap = sys.processes();
     let cpu_usage = sys.global_cpu_info().cpu_usage() as f64 / 100.0;
@@ -56,10 +63,30 @@ pub fn get_process_data(
             pcu / cpu_usage
         } else {
             pcu
-        };
+        } as f32;
 
         let disk_usage = process_val.disk_usage();
         let process_state = (process_val.status().to_string(), 'R');
+
+        #[cfg(feature = "gpu")]
+        let (gpu_mem, gpu_util, gpu_mem_percent) = {
+            let mut gpu_mem = 0;
+            let mut gpu_util = 0;
+            let mut gpu_mem_percent = 0.0;
+            if let Some(gpus) = &collector.gpu_pids {
+                gpus.iter().for_each(|gpu| {
+                    // add mem/util for all gpus to pid
+                    if let Some((mem, util)) = gpu.get(&process_val.pid().as_u32()) {
+                        gpu_mem += mem;
+                        gpu_util += util;
+                    }
+                });
+            }
+            if let Some(gpu_total_mem) = &collector.gpus_total_mem {
+                gpu_mem_percent = (gpu_mem as f64 / *gpu_total_mem as f64 * 100.0) as f32;
+            }
+            (gpu_mem, gpu_util, gpu_mem_percent)
+        };
         process_vector.push(ProcessHarvest {
             pid: process_val.pid().as_u32() as _,
             parent_pid: process_val.parent().map(|p| p.as_u32() as _),
@@ -69,7 +96,7 @@ pub fn get_process_data(
                 process_val.memory() as f64 * 100.0 / total_memory as f64
             } else {
                 0.0
-            },
+            } as f32,
             mem_usage_bytes: process_val.memory(),
             cpu_usage_percent: process_cpu_usage,
             read_bytes_per_sec: disk_usage.read_bytes,
@@ -88,6 +115,12 @@ pub fn get_process_data(
             } else {
                 Duration::from_secs(process_val.run_time())
             },
+            #[cfg(feature = "gpu")]
+            gpu_mem,
+            #[cfg(feature = "gpu")]
+            gpu_util,
+            #[cfg(feature = "gpu")]
+            gpu_mem_percent,
         });
     }
 

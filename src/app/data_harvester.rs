@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", feature = "gpu"))]
 use hashbrown::HashMap;
 #[cfg(feature = "battery")]
 use starship_battery::{Battery, Manager};
@@ -27,7 +27,7 @@ pub mod temperature;
 
 #[derive(Clone, Debug)]
 pub struct Data {
-    pub last_collection_time: Instant,
+    pub collection_time: Instant,
     pub cpu: Option<cpu::CpuHarvest>,
     pub load_avg: Option<cpu::LoadAvgHarvest>,
     pub memory: Option<memory::MemHarvest>,
@@ -50,7 +50,7 @@ pub struct Data {
 impl Default for Data {
     fn default() -> Self {
         Data {
-            last_collection_time: Instant::now(),
+            collection_time: Instant::now(),
             cpu: None,
             load_avg: None,
             memory: None,
@@ -124,7 +124,12 @@ pub struct DataCollector {
     battery_list: Option<Vec<Battery>>,
 
     #[cfg(target_family = "unix")]
-    user_table: self::processes::UserTable,
+    user_table: processes::UserTable,
+
+    #[cfg(feature = "gpu")]
+    gpu_pids: Option<Vec<HashMap<u32, (u64, u32)>>>,
+    #[cfg(feature = "gpu")]
+    gpus_total_mem: Option<u64>,
 }
 
 impl DataCollector {
@@ -153,6 +158,10 @@ impl DataCollector {
             filters,
             #[cfg(target_family = "unix")]
             user_table: Default::default(),
+            #[cfg(feature = "gpu")]
+            gpu_pids: None,
+            #[cfg(feature = "gpu")]
+            gpus_total_mem: None,
         }
     }
 
@@ -284,24 +293,49 @@ impl DataCollector {
     pub fn update_data(&mut self) {
         self.refresh_sysinfo_data();
 
-        let current_instant = Instant::now();
+        self.data.collection_time = Instant::now();
 
         self.update_cpu_usage();
         self.update_memory_usage();
-        self.update_processes(
-            #[cfg(target_os = "linux")]
-            current_instant,
-        );
         self.update_temps();
-        self.update_network_usage(current_instant);
-        self.update_disks();
-
         #[cfg(feature = "battery")]
         self.update_batteries();
+        #[cfg(feature = "gpu")]
+        self.update_gpus(); // update_gpus before procs for gpu_pids but after temps for appending
+        self.update_processes();
+        self.update_network_usage();
+        self.update_disks();
 
         // Update times for future reference.
-        self.last_collection_time = current_instant;
-        self.data.last_collection_time = current_instant;
+        self.last_collection_time = self.data.collection_time;
+    }
+
+    #[cfg(feature = "gpu")]
+    #[inline]
+    fn update_gpus(&mut self) {
+        if self.widgets_to_harvest.use_gpu {
+            #[cfg(feature = "nvidia")]
+            if let Some(data) = nvidia::get_nvidia_vecs(
+                &self.temperature_type,
+                &self.filters.temp_filter,
+                &self.widgets_to_harvest,
+            ) {
+                if let Some(mut temp) = data.temperature {
+                    if let Some(sensors) = &mut self.data.temperature_sensors {
+                        sensors.append(&mut temp);
+                    } else {
+                        self.data.temperature_sensors = Some(temp);
+                    }
+                }
+                if let Some(mem) = data.memory {
+                    self.data.gpu = Some(mem);
+                }
+                if let Some(proc) = data.procs {
+                    self.gpu_pids = Some(proc.1);
+                    self.gpus_total_mem = Some(proc.0);
+                }
+            }
+        }
     }
 
     #[inline]
@@ -317,66 +351,9 @@ impl DataCollector {
     }
 
     #[inline]
-    fn update_processes(&mut self, #[cfg(target_os = "linux")] current_instant: Instant) {
+    fn update_processes(&mut self) {
         if self.widgets_to_harvest.use_proc {
-            if let Ok(mut process_list) = {
-                let total_memory = if let Some(memory) = &self.data.memory {
-                    memory.total_bytes
-                } else {
-                    self.sys.total_memory()
-                };
-
-                #[cfg(target_os = "linux")]
-                {
-                    use self::processes::{PrevProc, ProcHarvestOptions};
-
-                    let prev_proc = PrevProc {
-                        prev_idle: &mut self.prev_idle,
-                        prev_non_idle: &mut self.prev_non_idle,
-                    };
-
-                    let proc_harvest_options = ProcHarvestOptions {
-                        use_current_cpu_total: self.use_current_cpu_total,
-                        unnormalized_cpu: self.unnormalized_cpu,
-                    };
-
-                    let time_diff = current_instant
-                        .duration_since(self.last_collection_time)
-                        .as_secs();
-
-                    processes::get_process_data(
-                        &self.sys,
-                        prev_proc,
-                        &mut self.pid_mapping,
-                        proc_harvest_options,
-                        time_diff,
-                        total_memory,
-                        &mut self.user_table,
-                    )
-                }
-                #[cfg(not(target_os = "linux"))]
-                {
-                    #[cfg(target_family = "unix")]
-                    {
-                        processes::get_process_data(
-                            &self.sys,
-                            self.use_current_cpu_total,
-                            self.unnormalized_cpu,
-                            total_memory,
-                            &mut self.user_table,
-                        )
-                    }
-                    #[cfg(not(target_family = "unix"))]
-                    {
-                        processes::get_process_data(
-                            &self.sys,
-                            self.use_current_cpu_total,
-                            self.unnormalized_cpu,
-                            total_memory,
-                        )
-                    }
-                }
-            } {
+            if let Ok(mut process_list) = self.get_processes() {
                 // NB: To avoid duplicate sorts on rerenders/events, we sort the processes by PID here.
                 // We also want to avoid re-sorting *again* later on if we're sorting by PID, since we already
                 // did it here!
@@ -426,16 +403,13 @@ impl DataCollector {
             {
                 self.data.arc = memory::arc::get_arc_usage();
             }
-
-            #[cfg(feature = "gpu")]
-            if self.widgets_to_harvest.use_gpu {
-                self.data.gpu = memory::gpu::get_gpu_mem_usage();
-            }
         }
     }
 
     #[inline]
-    fn update_network_usage(&mut self, current_instant: Instant) {
+    fn update_network_usage(&mut self) {
+        let current_instant = self.data.collection_time;
+
         if self.widgets_to_harvest.use_net {
             let net_data = network::get_network_data(
                 &self.sys,
@@ -466,23 +440,18 @@ impl DataCollector {
     #[inline]
     fn update_disks(&mut self) {
         if self.widgets_to_harvest.use_disk {
-            #[cfg(any(target_os = "freebsd", target_os = "linux", target_os = "macos"))]
-            {
-                let disk_filter = &self.filters.disk_filter;
-                let mount_filter = &self.filters.mount_filter;
-                self.data.disks = disks::get_disk_usage(disk_filter, mount_filter).ok();
-            }
-
-            #[cfg(target_os = "windows")]
-            {
-                self.data.disks = Some(disks::get_disk_usage(
-                    &self.sys,
-                    &self.filters.disk_filter,
-                    &self.filters.mount_filter,
-                ));
-            }
-
+            self.data.disks = disks::get_disk_usage(self).ok();
             self.data.io = disks::get_io_usage().ok();
+        }
+    }
+
+    /// Returns the total memory of the system.
+    #[inline]
+    fn total_memory(&self) -> u64 {
+        if let Some(memory) = &self.data.memory {
+            memory.total_bytes
+        } else {
+            self.sys.total_memory()
         }
     }
 }

@@ -327,7 +327,7 @@ pub const CPU_HELP_TEXT: [&str; 2] = [
     "Mouse scroll     Scrolling over an CPU core/average shows only that entry on the chart",
 ];
 
-pub const PROCESS_HELP_TEXT: [&str; 15] = [
+pub const PROCESS_HELP_TEXT: [&str; 17] = [
     "3 - Process widget",
     "dd, F9           Kill the selected process",
     "c                Sort by CPU usage, press again to reverse",
@@ -343,9 +343,11 @@ pub const PROCESS_HELP_TEXT: [&str; 15] = [
     "t, F5            Toggle tree mode",
     "+, -, click      Collapse/expand a branch while in tree mode",
     "click on header  Sorts the entries by that column, click again to invert the sort",
+    "C                Sort by GPU usage, press again to reverse",
+    "M                Sort by GPU memory usage, press again to reverse",
 ];
 
-pub const SEARCH_HELP_TEXT: [&str; 48] = [
+pub const SEARCH_HELP_TEXT: [&str; 51] = [
     "4 - Process search widget",
     "Esc              Close the search widget (retains the filter)",
     "Ctrl-a           Skip to the start of the search query",
@@ -373,6 +375,9 @@ pub const SEARCH_HELP_TEXT: [&str; 48] = [
     "twrite, t.write  ex: twrite = 1",
     "user             ex: user = root",
     "state            ex: state = running",
+    "gpu%             ex: gpu% < 4.2",
+    "gmem             ex: gmem < 100 kb",
+    "gmem%            ex: gmem% < 4.2",
     "",
     "Comparison operators:",
     "=                ex: cpu = 1",
@@ -448,7 +453,7 @@ pub const HELP_TEXT: [&[&str]; HELP_CONTENTS_TEXT.len()] = [
 ];
 
 // Default layouts
-pub const DEFAULT_LAYOUT: &str = r##"
+pub const DEFAULT_LAYOUT: &str = r#"
 [[row]]
   ratio=30
   [[row.child]]
@@ -471,9 +476,9 @@ pub const DEFAULT_LAYOUT: &str = r##"
   [[row.child]]
     type="proc"
     default=true
-"##;
+"#;
 
-pub const DEFAULT_BATTERY_LAYOUT: &str = r##"
+pub const DEFAULT_BATTERY_LAYOUT: &str = r#"
 [[row]]
   ratio=30
   [[row.child]]
@@ -500,27 +505,26 @@ pub const DEFAULT_BATTERY_LAYOUT: &str = r##"
   [[row.child]]
     type="proc"
     default=true
-"##;
+"#;
 
 // Config and flags
 pub const DEFAULT_CONFIG_FILE_PATH: &str = "bottom/bottom.toml";
 
 // TODO: Eventually deprecate this, or grab from a file.
-pub const CONFIG_TEXT: &str = r##"# This is a default config file for bottom.  All of the settings are commented
+pub const CONFIG_TEXT: &str = r#"# This is a default config file for bottom.  All of the settings are commented
 # out by default; if you wish to change them uncomment and modify as you see
 # fit.
 
 # This group of options represents a command-line flag/option.  Flags explicitly
 # added when running (ie: btm -a) will override this config file if an option
 # is also set here.
-
 [flags]
 # Whether to hide the average cpu entry.
 #hide_avg_cpu = false
 # Whether to use dot markers rather than braille.
 #dot_marker = false
 # The update rate of the application.
-#rate = 1000
+#rate = "1s"
 # Whether to put the CPU legend to the left.
 #left_legend = false
 # Whether to set CPU% on a process to be based on the total CPU or just current usage.
@@ -543,7 +547,7 @@ pub const CONFIG_TEXT: &str = r##"# This is a default config file for bottom.  A
 #temperature_type = "fahrenheit"
 #temperature_type = "celsius"
 # The default time interval (in milliseconds).
-#default_time_value = 60000
+#default_time_value = "60s"
 # The time delta on each zoom in/out action (in milliseconds).
 #time_delta = 15000
 # Hides the time scale.
@@ -581,21 +585,21 @@ pub const CONFIG_TEXT: &str = r##"# This is a default config file for bottom.  A
 #network_use_log = false
 # Hides advanced options to stop a process on Unix-like systems.
 #disable_advanced_kill = false
-# Shows GPU(s) memory
-#enable_gpu_memory = false
+# Shows GPU(s) information
+#enable_gpu = false
 # Shows cache and buffer memory
 #enable_cache_memory = false
 # How much data is stored at once in terms of time.
 #retention = "10m"
 
 # These are flags around the process widget.
-
 #[processes]
-#columns = ["PID", "Name", "CPU%", "Mem%", "R/s", "W/s", "T.Read", "T.Write", "User", "State"]
+# The columns shown by the process widget. The following columns are supported:
+#   PID, Name, CPU%, Mem%, R/s, W/s, T.Read, T.Write, User, State, Time, GMem%, GPU%
+#columns = ["PID", "Name", "CPU%", "Mem%", "R/s", "W/s", "T.Read", "T.Write", "User", "State", "GMEM%", "GPU%"]
 
 # These are all the components that support custom theming.  Note that colour support
 # will depend on terminal support.
-
 #[colors] # Uncomment if you want to use custom colors
 # Represents the colour of table headers (processes, CPU, disks, temperature).
 #table_header_color="LightBlue"
@@ -611,7 +615,7 @@ pub const CONFIG_TEXT: &str = r##"# This is a default config file for bottom.  A
 #swap_color="LightYellow"
 # Represents the colour ARC will use in the memory legend and graph.
 #arc_color="LightCyan"
-# Represents the colour the GPU will use in the memory legend and graph.
+# Represents the colour the GPU will use in the legend and graph.
 #gpu_core_colors=["LightGreen", "LightBlue", "LightRed", "Cyan", "Green", "Blue", "Red"]
 # Represents the colour rx will use in the network legend and graph.
 #rx_color="LightCyan"
@@ -695,7 +699,7 @@ pub const CONFIG_TEXT: &str = r##"# This is a default config file for bottom.  A
 #regex = true
 #case_sensitive = false
 #whole_word = false
-"##;
+"#;
 
 pub const CONFIG_TOP_HEAD: &str = r##"# This is bottom's config file.
 # Values in this config file will change when changed in the interface.
@@ -706,19 +710,19 @@ pub const CONFIG_TOP_HEAD: &str = r##"# This is bottom's config file.
 
 "##;
 
-pub const CONFIG_DISPLAY_OPTIONS_HEAD: &str = r##"
+pub const CONFIG_DISPLAY_OPTIONS_HEAD: &str = r#"
 # These options represent settings that affect how bottom functions.
 # If a setting here corresponds to command-line flag, then the flag will temporarily override
 # the setting.
-"##;
+"#;
 
-pub const CONFIG_COLOUR_HEAD: &str = r##"
+pub const CONFIG_COLOUR_HEAD: &str = r#"
 # These options represent colour values for various parts of bottom.  Note that colour support
 # will ultimately depend on the terminal - for example, the Terminal for macOS does NOT like
 # custom colours and it may glitch out.
-"##;
+"#;
 
-pub const CONFIG_LAYOUT_HEAD: &str = r##"
+pub const CONFIG_LAYOUT_HEAD: &str = r#"
 # These options represent how bottom will lay out its widgets.  Layouts follow a pattern like this:
 # [[row]] represents a row in the application.
 # [[row.child]] represents either a widget or a column.
@@ -726,11 +730,11 @@ pub const CONFIG_LAYOUT_HEAD: &str = r##"
 #
 # All widgets must have the valid type value set to one of ["cpu", "mem", "proc", "net", "temp", "disk", "empty"].
 # All layout components have a ratio value - if this is not set, then it defaults to 1.
-"##;
+"#;
 
-pub const CONFIG_FILTER_HEAD: &str = r##"
+pub const CONFIG_FILTER_HEAD: &str = r#"
 # These options represent disabled entries for the temperature and disk widgets.
-"##;
+"#;
 
 #[cfg(test)]
 mod test {

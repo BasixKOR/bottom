@@ -8,21 +8,31 @@ use crate::app::filter::Filter;
 cfg_if! {
     if #[cfg(target_os = "freebsd")] {
         mod freebsd;
+        #[cfg(feature = "zfs")]
+        mod io_counters;
+        #[cfg(feature = "zfs")]
+        mod zfs_io_counters;
+        #[cfg(feature = "zfs")]
+        pub use io_counters::IoCounters;
         pub(crate) use self::freebsd::*;
     } else if #[cfg(target_os = "windows")] {
         mod windows;
         pub(crate) use self::windows::*;
     } else if #[cfg(target_os = "linux")] {
         mod unix;
+        #[cfg(feature = "zfs")]
+        mod zfs_io_counters;
         pub(crate) use self::unix::*;
     } else if #[cfg(target_os = "macos")] {
         mod unix;
         pub(crate) use self::unix::*;
+    } else {
+        mod other;
+        pub(crate) use self::other::*;
     }
-    // TODO: Add dummy impls here for other OSes?
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct DiskHarvest {
     pub name: String,
     pub mount_point: String,
@@ -46,7 +56,7 @@ pub struct IoData {
 pub type IoHarvest = HashMap<String, Option<IoData>>;
 
 cfg_if! {
-    if #[cfg(not(target_os = "freebsd"))] {
+    if #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))] {
         mod io_counters;
         pub use io_counters::IoCounters;
 
@@ -54,7 +64,8 @@ cfg_if! {
         pub fn get_io_usage() -> anyhow::Result<IoHarvest> {
             let mut io_hash: HashMap<String, Option<IoData>> = HashMap::new();
 
-            for io in io_stats()?.into_iter().flatten() {
+            // TODO: Maybe rewrite this to not do a result of vec of result...
+            for io in io_stats()?.into_iter() {
                 let mount_point = io.device_name().to_string_lossy();
 
                 io_hash.insert(
@@ -67,6 +78,10 @@ cfg_if! {
             }
 
             Ok(io_hash)
+        }
+    } else if #[cfg(not(target_os = "freebsd"))] {
+        pub fn get_io_usage() -> anyhow::Result<IoHarvest> {
+            anyhow::bail!("Unsupported OS");
         }
     }
 }
@@ -82,7 +97,7 @@ cfg_if! {
 /// 2. Is the entry denied through any filter? That is, does it match an entry in a
 ///    filter where `is_list_ignored` is `true`? If so, we always deny this entry.
 /// 3. Anything else is allowed.
-pub(self) fn keep_disk_entry(
+pub fn keep_disk_entry(
     disk_name: &str, mount_point: &str, disk_filter: &Option<Filter>, mount_filter: &Option<Filter>,
 ) -> bool {
     match (disk_filter, mount_filter) {

@@ -13,8 +13,10 @@ const TEMPLATE: &str = "\
 
 const USAGE: &str = "btm [OPTIONS]";
 
-const DEFAULT_WIDGET_TYPE_STR: &str = if cfg!(feature = "battery") {
-    "\
+const DEFAULT_WIDGET_TYPE_STR: &str = {
+    #[cfg(feature = "battery")]
+    {
+        "\
 Sets which widget type to use as the default widget.
 For the default layout, this defaults to the 'process' widget.
 For a custom layout, it defaults to the first widget it sees.
@@ -46,8 +48,10 @@ Supported widget names:
 |       batt, battery      |
 +--------------------------+
 "
-} else {
-    "\
+    }
+    #[cfg(not(feature = "battery"))]
+    {
+        "\
 Sets which widget type to use as the default widget.
 For the default layout, this defaults to the 'process' widget.
 For a custom layout, it defaults to the first widget it sees.
@@ -77,14 +81,13 @@ Supported widget names:
 |           disk           |
 +--------------------------+
 "
+    }
 };
 
-pub fn get_matches() -> clap::ArgMatches {
+pub fn get_matches() -> ArgMatches {
     build_app().get_matches()
 }
 
-// TODO: Refactor this a bit, it's quite messy atm
-// TODO: [DEBUG] Add a proper debugging solution.
 pub fn build_app() -> Command {
     // Temps
     let kelvin = Arg::new("kelvin")
@@ -146,9 +149,9 @@ pub fn build_app() -> Command {
         .short('n')
         .long("unnormalized_cpu")
         .action(ArgAction::SetTrue)
-        .help("Show process CPU% without normalizing over the number of cores.")
+        .help("Show process CPU% usage without normalizing over the number of cores.")
         .long_help(
-            "Shows process CPU usage without averaging over the number of CPU cores in the system.",
+            "Shows all process CPU% usage without averaging over the number of CPU cores in the system.",
         );
 
     let disable_click = Arg::new("disable_click")
@@ -164,9 +167,9 @@ pub fn build_app() -> Command {
         .help("Uses a dot marker for graphs.")
         .long_help("Uses a dot marker for graphs as opposed to the default braille marker.");
 
-    let group = Arg::new("group") // TODO: Rename this to something like "group_process", would be "breaking" though.
+    let group_processes = Arg::new("group_processes")
         .short('g')
-        .long("group")
+        .long("group_processes")
         .action(ArgAction::SetTrue)
         .help("Groups processes with the same name by default.")
         .long_help("Groups processes with the same name by default.");
@@ -250,9 +253,10 @@ pub fn build_app() -> Command {
         .long_help(
             "Sets the location of the config file. Expects a config file in the TOML format. \
             If it doesn't exist, one is created.",
-        );
+        )
+        .value_hint(ValueHint::AnyPath);
 
-    // TODO: Fix this, its broken in the manpage
+    // TODO: File an issue with manpage, it cannot render charts correctly.
     let color = Arg::new("color")
         .long("color")
         .action(ArgAction::Set)
@@ -270,7 +274,6 @@ pub fn build_app() -> Command {
         .long_help(
             "\
 Use a pre-defined color scheme. Currently supported values are:
-
 +------------------------------------------------------------+
 | default                                                    |
 +------------------------------------------------------------+
@@ -284,7 +287,6 @@ Use a pre-defined color scheme. Currently supported values are:
 +------------------------------------------------------------+
 | nord-light (nord but for use with light backgrounds)       |
 +------------------------------------------------------------+
-
 Defaults to \"default\".
 ",
         );
@@ -299,11 +301,13 @@ Defaults to \"default\".
         .short('t')
         .long("default_time_value")
         .action(ArgAction::Set)
-        .value_name("MS")
-        .help("Default time value for graphs in ms.")
-        .long_help("Default time value for graphs in milliseconds. The minimum time is 30s (30000), and the default is 60s (60000).");
+        .value_name("TIME")
+        .help("Default time value for graphs.")
+        .long_help(
+            "Default time value for graphs. Takes a number in milliseconds or a human duration (e.g. 60s). The minimum time is 30s, and the default is 60s.",
+        );
 
-    // TODO: Fix this, its broken in the manpage
+    // TODO: Charts are broken in the manpage
     let default_widget_count = Arg::new("default_widget_count")
         .long("default_widget_count")
         .action(ArgAction::Set)
@@ -348,17 +352,17 @@ use CPU (3) as the default instead.
         .short('r')
         .long("rate")
         .action(ArgAction::Set)
-        .value_name("MS")
-        .help("Sets a refresh rate in ms.")
-        .long_help("Sets a refresh rate in milliseconds. The minimum is 250ms, and defaults to 1000ms. Smaller values may take more computer resources.");
+        .value_name("TIME")
+        .help("Sets the data refresh rate.")
+        .long_help("Sets the data refresh rate. Takes a number in milliseconds or a human duration (e.g. 5s). The minimum is 250ms, and defaults to 1000ms. Smaller values may take more computer resources.");
 
     let time_delta = Arg::new("time_delta")
         .short('d')
         .long("time_delta")
         .action(ArgAction::Set)
-        .value_name("MS")
-        .help("The amount in ms changed upon zooming.")
-        .long_help("The amount of time in milliseconds changed when zooming in/out. The minimum is 1s (1000), and defaults to 15s (15000).");
+        .value_name("TIME")
+        .help("The amount of time changed upon zooming.")
+        .long_help("The amount of time changed when zooming in/out. Takes a number in milliseconds or a human duration (e.g. 30s). The minimum is 1s, and defaults to 15s.");
 
     let tree = Arg::new("tree")
         .short('T')
@@ -390,9 +394,9 @@ use CPU (3) as the default instead.
     let retention = Arg::new("retention")
         .long("retention")
         .action(ArgAction::Set)
-        .value_name("time")
-        .help("The timespan of data kept.")
-        .long_help("How much data is stored at once in terms of time. Takes in human-readable time spans (e.g. 10m, 1h), with a minimum of 1 minute. Note higher values will take up more memory. Defaults to 10 minutes.");
+        .value_name("TIME")
+        .help("The timespan of data stored.")
+        .long_help("How much data is stored at once in terms of time. Takes a number in milliseconds or a human duration (e.g. 20m), with a minimum of 1 minute. Note higher values will take up more memory. Defaults to 10 minutes.");
 
     let version = Arg::new("version")
         .short('V')
@@ -405,8 +409,84 @@ use CPU (3) as the default instead.
         None => crate_version!(),
     };
 
-    #[allow(unused_mut)]
-    let mut app = Command::new(crate_name!())
+    let temperature_group = ArgGroup::new("TEMPERATURE_TYPE").args([
+        kelvin.get_id(),
+        fahrenheit.get_id(),
+        celsius.get_id(),
+    ]);
+
+    let mut args = [
+        version,
+        kelvin,
+        fahrenheit,
+        celsius,
+        autohide_time,
+        basic,
+        case_sensitive,
+        process_command,
+        config_location,
+        color,
+        mem_as_value,
+        default_time_value,
+        default_widget_count,
+        default_widget_type,
+        disable_click,
+        dot_marker,
+        group_processes,
+        hide_avg_cpu,
+        hide_table_gap,
+        hide_time,
+        show_table_scroll_position,
+        left_legend,
+        disable_advanced_kill,
+        rate,
+        regex,
+        time_delta,
+        tree,
+        network_use_bytes,
+        network_use_log,
+        network_use_binary_prefix,
+        current_usage,
+        unnormalized_cpu,
+        use_old_network_legend,
+        whole_word,
+        retention,
+        expanded_on_startup,
+        #[cfg(feature = "battery")]
+        {
+            Arg::new("battery")
+                .long("battery")
+                .action(ArgAction::SetTrue)
+                .help("Shows the battery widget.")
+                .long_help(
+                    "Shows the battery widget in default or basic mode. No effect on custom layouts.",
+                )
+        },
+        #[cfg(feature = "gpu")]
+        {
+            Arg::new("enable_gpu")
+                .long("enable_gpu")
+                .action(ArgAction::SetTrue)
+                .help("Enable collecting and displaying GPU usage.")
+        },
+        #[cfg(not(target_os = "windows"))]
+        {
+            Arg::new("enable_cache_memory")
+                .long("enable_cache_memory")
+                .action(ArgAction::SetTrue)
+                .help("Enable collecting and displaying cache and buffer memory.")
+        },
+    ];
+
+    // Manually sort the arguments.
+    args.sort_by(|a, b| {
+        let a = a.get_long().unwrap_or(a.get_id().as_str());
+        let b = b.get_long().unwrap_or(b.get_id().as_str());
+
+        a.cmp(b)
+    });
+
+    Command::new(crate_name!())
         .version(VERSION)
         .author(crate_authors!())
         .about(crate_description!())
@@ -414,75 +494,8 @@ use CPU (3) as the default instead.
         .override_usage(USAGE)
         .help_template(TEMPLATE)
         .disable_version_flag(true)
-        .arg(version)
-        .arg(kelvin)
-        .arg(fahrenheit)
-        .arg(celsius)
-        .group(ArgGroup::new("TEMPERATURE_TYPE").args(["kelvin", "fahrenheit", "celsius"]))
-        .arg(autohide_time)
-        .arg(basic)
-        .arg(case_sensitive)
-        .arg(process_command)
-        .arg(config_location)
-        .arg(color)
-        .arg(mem_as_value)
-        .arg(default_time_value)
-        .arg(default_widget_count)
-        .arg(default_widget_type)
-        .arg(disable_click)
-        .arg(dot_marker)
-        .arg(group)
-        .arg(hide_avg_cpu)
-        .arg(hide_table_gap)
-        .arg(hide_time)
-        .arg(show_table_scroll_position)
-        .arg(left_legend)
-        .arg(disable_advanced_kill)
-        .arg(rate)
-        .arg(regex)
-        .arg(time_delta)
-        .arg(tree)
-        .arg(network_use_bytes)
-        .arg(network_use_log)
-        .arg(network_use_binary_prefix)
-        .arg(current_usage)
-        .arg(unnormalized_cpu)
-        .arg(use_old_network_legend)
-        .arg(whole_word)
-        .arg(retention)
-        .arg(expanded_on_startup);
-
-    #[cfg(feature = "battery")]
-    {
-        let battery = Arg::new("battery")
-            .long("battery")
-            .action(ArgAction::SetTrue)
-            .help("Shows the battery widget.")
-            .long_help(
-                "Shows the battery widget in default or basic mode. No effect on custom layouts.",
-            );
-        app = app.arg(battery);
-    }
-
-    #[cfg(feature = "gpu")]
-    {
-        let enable_gpu_memory = Arg::new("enable_gpu_memory")
-            .long("enable_gpu_memory")
-            .action(ArgAction::SetTrue)
-            .help("Enable collecting and displaying GPU memory usage.");
-        app = app.arg(enable_gpu_memory);
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let cache = Arg::new("enable_cache_memory")
-            .long("enable_cache_memory")
-            .action(ArgAction::SetTrue)
-            .help("Enable collecting and displaying cache and buffer memory.");
-        app = app.arg(cache);
-    }
-
-    app
+        .args(args)
+        .group(temperature_group)
 }
 
 #[cfg(test)]

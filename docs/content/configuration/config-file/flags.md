@@ -4,11 +4,11 @@
 
     This section is in progress, and is just copied from the old documentation.
 
-Most of the [command line flags](../../command-line-flags) have config file equivalents to avoid having to type them out
+Most of the [command line flags](../command-line-flags.md) have config file equivalents to avoid having to type them out
 each time:
 
 | Field                        | Type                                                                                           | Functionality                                                                        |
-|------------------------------|------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| ---------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `hide_avg_cpu`               | Boolean                                                                                        | Hides the average CPU usage.                                                         |
 | `dot_marker`                 | Boolean                                                                                        | Uses a dot marker for graphs.                                                        |
 | `left_legend`                | Boolean                                                                                        | Puts the CPU chart legend to the left side.                                          |
@@ -20,9 +20,9 @@ each time:
 | `basic`                      | Boolean                                                                                        | Hides graphs and uses a more basic look.                                             |
 | `use_old_network_legend`     | Boolean                                                                                        | DEPRECATED - uses the older network legend.                                          |
 | `battery`                    | Boolean                                                                                        | Shows the battery widget.                                                            |
-| `rate`                       | Unsigned Int (represents milliseconds)                                                         | Sets a refresh rate in ms.                                                           |
-| `default_time_value`         | Unsigned Int (represents milliseconds)                                                         | Default time value for graphs in ms.                                                 |
-| `time_delta`                 | Unsigned Int (represents milliseconds)                                                         | The amount in ms changed upon zooming.                                               |
+| `rate`                       | Unsigned Int (represents milliseconds) or String (represents human time)                       | Sets a refresh rate in ms.                                                           |
+| `default_time_value`         | Unsigned Int (represents milliseconds) or String (represents human time)                       | Default time value for graphs in ms.                                                 |
+| `time_delta`                 | Unsigned Int (represents milliseconds) or String (represents human time)                       | The amount in ms changed upon zooming.                                               |
 | `hide_time`                  | Boolean                                                                                        | Hides the time scale.                                                                |
 | `temperature_type`           | String (one of ["k", "f", "c", "kelvin", "fahrenheit", "celsius"])                             | Sets the temperature unit type.                                                      |
 | `default_widget_type`        | String (one of ["cpu", "proc", "net", "temp", "mem", "disk"], same as layout options)          | Sets the default widget type, use --help for more info.                              |
@@ -38,7 +38,7 @@ each time:
 | `network_use_binary_prefix`  | Boolean                                                                                        | Displays the network widget with binary prefixes.                                    |
 | `network_use_bytes`          | Boolean                                                                                        | Displays the network widget using bytes.                                             |
 | `network_use_log`            | Boolean                                                                                        | Displays the network widget with a log scale.                                        |
-| `enable_gpu_memory`          | Boolean                                                                                        | Shows the GPU memory widget.                                                         |
+| `enable_gpu`                 | Boolean                                                                                        | Shows the GPU widgets.                                                               |
 | `retention`                  | String (human readable time, such as "10m", "1h", etc.)                                        | How much data is stored at once in terms of time.                                    |
 | `unnormalized_cpu`           | Boolean                                                                                        | Show process CPU% without normalizing over the number of cores.                      |
 | `expanded_on_startup`        | Boolean                                                                                        | Expand the default widget upon starting the app.                                     |

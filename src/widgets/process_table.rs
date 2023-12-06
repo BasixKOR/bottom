@@ -91,6 +91,12 @@ fn make_column(column: ProcColumn) -> SortColumn<ProcColumn> {
         User => SortColumn::soft(User, Some(0.05)),
         State => SortColumn::hard(State, 7),
         Time => SortColumn::new(Time),
+        #[cfg(feature = "gpu")]
+        GpuMem => SortColumn::new(GpuMem).default_descending(),
+        #[cfg(feature = "gpu")]
+        GpuMemPercent => SortColumn::new(GpuMemPercent).default_descending(),
+        #[cfg(feature = "gpu")]
+        GpuUtilPercent => SortColumn::new(GpuUtilPercent).default_descending(),
     }
 }
 
@@ -117,6 +123,10 @@ pub enum ProcWidgetColumn {
     User,
     State,
     Time,
+    #[cfg(feature = "gpu")]
+    GpuMem,
+    #[cfg(feature = "gpu")]
+    GpuUtil,
 }
 
 impl<'de> Deserialize<'de> for ProcWidgetColumn {
@@ -140,7 +150,11 @@ impl<'de> Deserialize<'de> for ProcWidgetColumn {
             "state" => Ok(ProcWidgetColumn::State),
             "user" => Ok(ProcWidgetColumn::User),
             "time" => Ok(ProcWidgetColumn::Time),
-            _ => Err(D::Error::custom("doesn't match any column type")),
+            #[cfg(feature = "gpu")]
+            "gmem" | "gmem%" => Ok(ProcWidgetColumn::GpuMem),
+            #[cfg(feature = "gpu")]
+            "gpu%" => Ok(ProcWidgetColumn::GpuUtil),
+            _ => Err(Error::custom("doesn't match any column type")),
         }
     }
 }
@@ -277,6 +291,16 @@ impl ProcWidgetState {
                             ProcWidgetColumn::User => User,
                             ProcWidgetColumn::State => State,
                             ProcWidgetColumn::Time => Time,
+                            #[cfg(feature = "gpu")]
+                            ProcWidgetColumn::GpuMem => {
+                                if mem_vals {
+                                    GpuMem
+                                } else {
+                                    GpuMemPercent
+                                }
+                            }
+                            #[cfg(feature = "gpu")]
+                            ProcWidgetColumn::GpuUtil => GpuUtilPercent,
                         };
 
                         make_column(col)
@@ -318,6 +342,10 @@ impl ProcWidgetState {
                     State => ProcWidgetColumn::State,
                     User => ProcWidgetColumn::User,
                     Time => ProcWidgetColumn::Time,
+                    #[cfg(feature = "gpu")]
+                    GpuMem | GpuMemPercent => ProcWidgetColumn::GpuMem,
+                    #[cfg(feature = "gpu")]
+                    GpuUtilPercent => ProcWidgetColumn::GpuUtil,
                 }
             })
             .collect::<IndexSet<_>>();
@@ -747,6 +775,23 @@ impl ProcWidgetState {
                 self.force_data_update();
             }
         }
+        #[cfg(feature = "gpu")]
+        if let Some(index) = self.column_mapping.get_index_of(&ProcWidgetColumn::GpuMem) {
+            if let Some(mem) = self.get_mut_proc_col(index) {
+                match mem {
+                    ProcColumn::GpuMem => {
+                        *mem = ProcColumn::GpuMemPercent;
+                    }
+                    ProcColumn::GpuMemPercent => {
+                        *mem = ProcColumn::GpuMem;
+                    }
+                    _ => unreachable!(),
+                }
+
+                self.sort_table.set_data(self.column_text());
+                self.force_data_update();
+            }
+        }
     }
 
     /// Forces an update of the data stored.
@@ -1029,6 +1074,10 @@ mod test {
             num_similar: 0,
             disabled: false,
             time: Duration::from_secs(0),
+            #[cfg(feature = "gpu")]
+            gpu_mem_usage: MemUsage::Percent(1.1),
+            #[cfg(feature = "gpu")]
+            gpu_usage: 0,
         };
 
         let b = ProcWidgetData {
@@ -1063,10 +1112,7 @@ mod test {
         data.sort_by_key(|p| p.pid);
         sort_skip_pid_asc(&ProcColumn::CpuPercent, &mut data, SortOrder::Descending);
         assert_eq!(
-            vec![&c, &b, &a, &d]
-                .iter()
-                .map(|d| (d.pid))
-                .collect::<Vec<_>>(),
+            [&c, &b, &a, &d].iter().map(|d| (d.pid)).collect::<Vec<_>>(),
             data.iter().map(|d| (d.pid)).collect::<Vec<_>>(),
         );
 
@@ -1074,20 +1120,14 @@ mod test {
         data.sort_by_key(|p| p.pid);
         sort_skip_pid_asc(&ProcColumn::CpuPercent, &mut data, SortOrder::Ascending);
         assert_eq!(
-            vec![&a, &d, &b, &c]
-                .iter()
-                .map(|d| (d.pid))
-                .collect::<Vec<_>>(),
+            [&a, &d, &b, &c].iter().map(|d| (d.pid)).collect::<Vec<_>>(),
             data.iter().map(|d| (d.pid)).collect::<Vec<_>>(),
         );
 
         data.sort_by_key(|p| p.pid);
         sort_skip_pid_asc(&ProcColumn::MemoryPercent, &mut data, SortOrder::Descending);
         assert_eq!(
-            vec![&b, &a, &c, &d]
-                .iter()
-                .map(|d| (d.pid))
-                .collect::<Vec<_>>(),
+            [&b, &a, &c, &d].iter().map(|d| (d.pid)).collect::<Vec<_>>(),
             data.iter().map(|d| (d.pid)).collect::<Vec<_>>(),
         );
 
@@ -1095,10 +1135,7 @@ mod test {
         data.sort_by_key(|p| p.pid);
         sort_skip_pid_asc(&ProcColumn::MemoryPercent, &mut data, SortOrder::Ascending);
         assert_eq!(
-            vec![&c, &d, &a, &b]
-                .iter()
-                .map(|d| (d.pid))
-                .collect::<Vec<_>>(),
+            [&c, &d, &a, &b].iter().map(|d| (d.pid)).collect::<Vec<_>>(),
             data.iter().map(|d| (d.pid)).collect::<Vec<_>>(),
         );
     }

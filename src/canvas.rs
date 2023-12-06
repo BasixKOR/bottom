@@ -12,7 +12,6 @@ use tui::{
 
 use crate::{
     app::{
-        self,
         layout_manager::{BottomColRow, BottomLayout, BottomWidgetType},
         App,
     },
@@ -50,8 +49,7 @@ impl FromStr for ColourScheme {
             "nord" => Ok(ColourScheme::Nord),
             "nord-light" => Ok(ColourScheme::NordLight),
             _ => Err(BottomError::ConfigError(format!(
-                "\"{}\" is an invalid built-in color scheme.",
-                s
+                "\"{s}\" is an invalid built-in color scheme."
             ))),
         }
     }
@@ -227,7 +225,7 @@ impl Painter {
     }
 
     pub fn draw_data<B: Backend>(
-        &mut self, terminal: &mut Terminal<B>, app_state: &mut app::App,
+        &mut self, terminal: &mut Terminal<B>, app_state: &mut App,
     ) -> error::Result<()> {
         use BottomWidgetType::*;
 

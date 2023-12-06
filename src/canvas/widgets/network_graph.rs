@@ -14,8 +14,7 @@ use crate::{
         time_graph::{GraphData, TimeGraph},
         tui_widget::time_chart::Point,
     },
-    units::data_units::DataUnit,
-    utils::gen_util::*,
+    utils::{data_prefixes::*, data_units::DataUnit, gen_util::partial_ordering},
 };
 
 impl Painter {
@@ -179,7 +178,7 @@ impl Painter {
         let total_tx_display = &app_state.converted_data.total_tx_display;
 
         // Gross but I need it to work...
-        let total_network = vec![Row::new(vec![
+        let total_network = vec![Row::new([
             Text::styled(rx_display, self.colours.rx_style),
             Text::styled(tx_display, self.colours.tx_style),
             Text::styled(total_rx_display, self.colours.total_rx_style),
@@ -189,7 +188,7 @@ impl Painter {
         // Draw
         f.render_widget(
             Table::new(total_network)
-                .header(Row::new(NETWORK_HEADERS.to_vec()).style(self.colours.table_header_style))
+                .header(Row::new(NETWORK_HEADERS).style(self.colours.table_header_style))
                 .block(Block::default().borders(Borders::ALL).border_style(
                     if app_state.current_widget.widget_id == widget_id {
                         self.colours.highlighted_border_style
@@ -414,13 +413,13 @@ fn adjust_network_data_point(
 
             let base_unit = max_value_scaled;
             let labels: Vec<String> = vec![
-                format!("0{}{}", unit_prefix, unit_type),
+                format!("0{unit_prefix}{unit_type}"),
                 format!("{:.1}", base_unit * 0.5),
                 format!("{:.1}", base_unit),
                 format!("{:.1}", base_unit * 1.5),
             ]
             .into_iter()
-            .map(|s| format!("{:>5}", s)) // Pull 5 as the longest legend value is generally going to be 5 digits (if they somehow hit over 5 terabits per second)
+            .map(|s| format!("{s:>5}")) // Pull 5 as the longest legend value is generally going to be 5 digits (if they somehow hit over 5 terabits per second)
             .collect();
 
             (bumped_max_entry, labels)

@@ -1012,11 +1012,13 @@ impl std::str::FromStr for BottomWidgetType {
             "temp" | "temperature" => Ok(BottomWidgetType::Temp),
             "disk" => Ok(BottomWidgetType::Disk),
             "empty" => Ok(BottomWidgetType::Empty),
-            "battery" | "batt" if cfg!(feature = "battery") => Ok(BottomWidgetType::Battery),
+            #[cfg(feature = "battery")]
+            "battery" | "batt" => Ok(BottomWidgetType::Battery),
             _ => {
-                if cfg!(feature = "battery") {
+                #[cfg(feature = "battery")]
+                {
                     Err(BottomError::ConfigError(format!(
-                        "\"{}\" is an invalid widget name.
+                        "\"{s}\" is an invalid widget name.
         
 Supported widget names:
 +--------------------------+
@@ -1035,11 +1037,12 @@ Supported widget names:
 |       batt, battery      |
 +--------------------------+
                 ",
-                        s
                     )))
-                } else {
+                }
+                #[cfg(not(feature = "battery"))]
+                {
                     Err(BottomError::ConfigError(format!(
-                        "\"{}\" is an invalid widget name.
+                        "\"{s}\" is an invalid widget name.
 
 Supported widget names:
 +--------------------------+
@@ -1056,7 +1059,6 @@ Supported widget names:
 |           disk           |
 +--------------------------+
                 ",
-                        s
                     )))
                 }
             }

@@ -1,6 +1,6 @@
 [package]
 name = "bottom"
-version = "0.9.2"
+version = "0.9.6"
 authors = ["Clement Tsang <cjhtsang@uwaterloo.ca>"]
 edition = "2021"
 repository = "https://github.com/ClementTsang/bottom"
@@ -16,11 +16,13 @@ exclude = [
     ".cargo-husky/",
     ".github/",
     "assets/",
+    "desktop/",
     "docs/",
     "sample_configs/",
     "scripts/",
     ".all-contributorsrc",
     ".cirrus.yml",
+    ".gitignore",
     ".markdownlint.json",
     "CHANGELOG.md",
     "clippy.toml",
@@ -29,6 +31,7 @@ exclude = [
     "Cross.toml",
     "rustfmt.toml",
 ]
+rust-version = "1.70.0"
 
 [[bin]]
 name = "btm"
@@ -65,58 +68,58 @@ gpu = ["nvidia"]
 nvidia = ["nvml-wrapper"]
 zfs = []
 
-# The features we use by default.
-default = ["deploy"]
+# Including logging for debugging purposes.
+logging = ["fern", "log", "time/local-offset"]
 
 # The features we use on deploy. Logging is not included as that is primarily (for now) just for debugging locally.
 deploy = ["battery", "gpu", "zfs"]
 
-# Including logging for debugging purposes.
-logging = ["fern", "log"]
+default = ["deploy"]
 
 [dependencies]
-anyhow = "1.0.71"
-backtrace = "0.3.67"
+anyhow = "1.0.75"
+backtrace = "0.3.69"
 cfg-if = "1.0.0"
-clap = { version = "4.3.1", features = ["default", "cargo", "wrap_help"] }
+clap = { version = "4.4.10", features = ["default", "cargo", "wrap_help"] }
 concat-string = "1.0.1"
-crossterm = "0.26.1"
-ctrlc = { version = "3.4.0", features = ["termination"] }
+crossterm = "0.27.0"
+ctrlc = { version = "3.4.1", features = ["termination"] }
 # dhat = "0.3.2"
 dirs = "5.0.1"
 fern = { version = "0.6.2", optional = true }
-hashbrown = "0.14.0"
+hashbrown = "0.14.3"
 humantime = "2.1.0"
-humantime-serde = "1.1.1"
-indexmap = "1.9.3"
-itertools = "0.10.5"
+indexmap = "2.1.0"
+itertools = "0.12.0"
 kstring = { version = "2.0.0", features = ["arc"] }
-log = { version = "0.4.18", optional = true }
-nvml-wrapper = { version = "0.9.0", optional = true }
+log = { version = "0.4.20", optional = true }
+nvml-wrapper = { version = "0.9.0", optional = true, features = [
+    "legacy-functions",
+] }
 once_cell = "1.18.0"
-regex = "1.8.4"
-serde = { version = "1.0.164", features = ["derive"] }
-starship-battery = { version = "0.8.1", optional = true }
-sysinfo = "=0.29.2"
-thiserror = "1.0.40"
-time = { version = "0.3.22", features = ["formatting", "macros"] }
-toml_edit = { version = "0.19.10", features = ["serde"] }
-tui = { version = "0.21.0", package = "ratatui" }
+regex = "1.10.2"
+serde = { version = "=1.0.193", features = ["derive"] }
+starship-battery = { version = "0.8.2", optional = true }
+sysinfo = "=0.29.11"
+thiserror = "1.0.50"
+time = { version = "0.3.30", features = ["formatting", "macros"] }
+toml_edit = { version = "0.21.0", features = ["serde"] }
+tui = { version = "0.22.0", package = "ratatui" }
 unicode-segmentation = "1.10.1"
-unicode-width = "0.1.10"
+unicode-width = "0.1.11"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.146"
+libc = "0.2.150"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-rustix = { version = "0.37.19", features = ["fs", "param", "process"] }
+rustix = { version = "0.38.25", features = ["fs", "param", "process"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.9.3"
 mach2 = "0.4.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.48.0", features = [
+windows = { version = "0.52.0", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_Storage_FileSystem",
@@ -127,21 +130,23 @@ windows = { version = "0.48.0", features = [
 ] }
 
 [target.'cfg(target_os = "freebsd")'.dependencies]
-serde_json = { version = "1.0.96" }
-sysctl = { version = "0.5.4" }
+serde_json = { version = "1.0.108" }
+sysctl = { version = "0.5.5" }
 filedescriptor = "0.8.2"
 
 [dev-dependencies]
-assert_cmd = "2.0.11"
+assert_cmd = "2.0.12"
 cargo-husky = { version = "1.5.0", default-features = false, features = [
     "user-hooks",
 ] }
 predicates = "3.0.3"
 
 [build-dependencies]
-clap = { version = "4.3.2", features = ["default", "cargo", "wrap_help"] }
-clap_complete = "4.3.1"
-clap_mangen = "0.2.12"
+clap = { version = "4.4.10", features = ["default", "cargo", "wrap_help"] }
+clap_complete = "4.4.4"
+clap_complete_fig = "4.4.2"
+clap_complete_nushell = "4.4.2"
+clap_mangen = "0.2.15"
 
 [package.metadata.deb]
 section = "utility"
@@ -176,6 +181,11 @@ assets = [
         "usr/share/zsh/vendor-completions/",
         "644",
     ],
+    [
+        "desktop/bottom.desktop",
+        "usr/share/applications/bottom.desktop",
+        "644",
+    ],
 ]
 extended-description = """
 
@@ -192,3 +202,14 @@ depends = "libc6:armhf (>= 2.28)"
 
 [package.metadata.wix]
 output = "bottom_x86_64_installer.msi"
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/btm", dest = "/usr/bin/", mode = "755" },
+    { source = "LICENSE", dest = "/usr/share/doc/btm/", mode = "644" },
+    { source = "manpage/btm.1.gz", dest = "/usr/share/man/man1/btm.1.gz", mode = "644", doc = true },
+    { source = "completion/btm.bash", dest = "/usr/share/bash-completion/completions/btm", mode = "644" },
+    { source = "completion/btm.fish", dest = "/usr/share/fish/vendor_completions.d/btm.fish", mode = "644" },
+    { source = "completion/_btm", dest = "/usr/share/zsh/vendor-completions/", mode = "644" },
+    { source = "desktop/bottom.desktop", dest = "/usr/share/applications/bottom.desktop", mode = "644" },
+]

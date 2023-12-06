@@ -69,7 +69,7 @@ impl DiskWidgetData {
 
     pub fn free_percent_string(&self) -> KString {
         match self.free_percent() {
-            Some(val) => format!("{:.1}%", val).into(),
+            Some(val) => format!("{val:.1}%").into(),
             None => "N/A".into(),
         }
     }
@@ -90,7 +90,7 @@ impl DiskWidgetData {
 
     pub fn used_percent_string(&self) -> KString {
         match self.used_percent() {
-            Some(val) => format!("{:.1}%", val).into(),
+            Some(val) => format!("{val:.1}%").into(),
             None => "N/A".into(),
         }
     }
@@ -126,7 +126,7 @@ impl ColumnHeader for DiskWidgetColumn {
 }
 
 impl DataToCell<DiskWidgetColumn> for DiskWidgetData {
-    fn to_cell<'a>(&'a self, column: &DiskWidgetColumn, calculated_width: u16) -> Option<Text<'a>> {
+    fn to_cell(&self, column: &DiskWidgetColumn, calculated_width: u16) -> Option<Text<'_>> {
         if calculated_width == 0 {
             return None;
         }

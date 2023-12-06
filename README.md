@@ -30,9 +30,9 @@
 - [Installation](#installation)
   - [Cargo](#cargo)
   - [Arch Linux](#arch-linux)
-  - [Debian/Ubuntu](#debianubuntu)
+  - [Debian / Ubuntu](#debian--ubuntu)
   - [Snap](#snap)
-  - [Fedora/CentOS](#fedoracentos)
+  - [Fedora / CentOS / AlmaLinux / Rocky Linux](#fedora--centos--almalinux--rocky-linux)
   - [Gentoo](#gentoo)
   - [Nix](#nix)
   - [Solus](#solus)
@@ -80,10 +80,10 @@ As (yet another) process/system visualization and management application, bottom
 
 - [Customizable behaviour](https://clementtsang.github.io/bottom/nightly/configuration/command-line-flags/) that can be controlled with command-line flags or a config file, such as:
 
-  - Custom and pre-built colour themes
-  - Changing the default behaviour of some widgets
+  - Custom and built-in colour themes
+  - Customizing widget behaviour
   - Changing the layout of widgets
-  - Filtering out entries in disk and temperature widgets
+  - Filtering out entries in some widgets
 
 - Some other nice stuff, like:
 
@@ -105,7 +105,7 @@ bottom _officially_ supports the following operating systems and corresponding a
 - Windows (`x86_64`, `i686`)
 
 These platforms are tested to work for the most part and issues on these platforms will be fixed if possible.
-Furthermore, binaries are expected to be built and tested using the most recent version of stable Rust.
+Furthermore, binaries are expected to be built and tested using the most recent version of stable Rust at the time.
 
 For more details on supported platforms and known problems, check out [the documentation](https://clementtsang.github.io/bottom/nightly/support/official/).
 
@@ -123,6 +123,7 @@ A non-comprehensive list of some currently unofficially supported platforms that
 
 - FreeBSD (`x86_64`)
 - Linux (`armv6`, `armv7`, `powerpc64le`, `riscv64gc`)
+- Android (`arm64`)
 
 For more details on unsupported platforms and known problems, check out [the documentation](https://clementtsang.github.io/bottom/nightly/support/unofficial/).
 
@@ -133,46 +134,48 @@ For more details on unsupported platforms and known problems, check out [the doc
 Installation via cargo can be done by installing the [`bottom`](https://crates.io/crates/bottom) crate:
 
 ```bash
-# If required, update Rust to the stable channel first
+# If required, update Rust to the stable channel first:
 rustup update stable
 
 # Install
 cargo install bottom --locked
 
-# If you use another channel by default, you can specify the stable channel as such:
+# If you use another channel by default, you can specify
+# the stable channel like so:
 cargo +stable install bottom --locked
 
-# --locked may be omitted if you wish to not used locked dependencies, though this may also cause problems:
-cargo +stable install bottom
+# --locked may be omitted if you wish to not use the
+# locked crate versions in Cargo.lock. However, be
+# aware that this may cause problems with dependencies.
+cargo install bottom
 ```
 
 ### Arch Linux
 
-There is an [official package](https://archlinux.org/packages/community/x86_64/bottom/) that can be installed with
-`pacman`:
+bottom is available as an [official package](https://archlinux.org/packages/extra/x86_64/bottom/) that can be installed with `pacman`:
 
 ```bash
 sudo pacman -S bottom
 ```
 
-### Debian/Ubuntu
+### Debian / Ubuntu
 
 A `.deb` file is provided on each [stable release](https://github.com/ClementTsang/bottom/releases/latest) and
 [nightly builds](https://github.com/ClementTsang/bottom/releases/tag/nightly) for x86, aarch64, and armv7
-(note stable ARM builds are only available for 0.6.8 and later). If you want to install this way, do something like:
+(note stable ARM builds are only available for 0.6.8 and later). An example of installing this way:
 
 ```bash
 # x86-64
-curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.1/bottom_0.9.1_amd64.deb
-sudo dpkg -i bottom_0.9.1_amd64.deb
+curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.6/bottom_0.9.6_amd64.deb
+sudo dpkg -i bottom_0.9.6_amd64.deb
 
 # ARM64
-curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.1/bottom_0.9.1_arm64.deb
-sudo dpkg -i bottom_0.9.1_arm64.deb
+curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.6/bottom_0.9.6_arm64.deb
+sudo dpkg -i bottom_0.9.6_arm64.deb
 
 # ARM
-curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.1/bottom_0.9.1_armhf.deb
-sudo dpkg -i bottom_0.9.1_armhf.deb
+curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.6/bottom_0.9.6_armhf.deb
+sudo dpkg -i bottom_0.9.6_armhf.deb
 ```
 
 ### Snap
@@ -189,13 +192,26 @@ sudo snap connect bottom:system-observe
 sudo snap connect bottom:process-control
 ```
 
-### Fedora/CentOS
+### Fedora / CentOS / AlmaLinux / Rocky Linux
 
-Available in [COPR](https://copr.fedorainfracloud.org/coprs/atim/bottom/):
+bottom is available in [COPR](https://copr.fedorainfracloud.org/coprs/atim/bottom/):
 
 ```bash
 sudo dnf copr enable atim/bottom -y
 sudo dnf install bottom
+```
+
+`.rpm` files are also generated (starting from 0.9.3) for x86. If you wish to install this way, then you can do
+something like:
+
+```bash
+# x86-64
+curl -LO https://github.com/ClementTsang/bottom/releases/download/0.9.6/bottom-0.9.6-1.x86_64.rpm
+sudo rpm -i bottom-0.9.6-1.x86_64.rpm
+
+# Nightly x86-64
+curl -LO https://github.com/ClementTsang/bottom/releases/download/nightly/bottom-0.9.6-1.x86_64.rpm
+sudo rpm -i bottom-0.9.6-1.x86_64.rpm
 ```
 
 ### Gentoo
@@ -291,8 +307,8 @@ to do so using the most recent version of stable Rust, which is how the binaries
 rustup update stable
 
 # Option 1 - Download from releases and install
-curl -LO https://github.com/ClementTsang/bottom/archive/0.9.1.tar.gz
-tar -xzvf 0.9.1.tar.gz
+curl -LO https://github.com/ClementTsang/bottom/archive/0.9.6.tar.gz
+tar -xzvf 0.9.6.tar.gz
 cargo install --path . --locked
 
 # Option 2 - Clone from master and install manually
@@ -428,6 +444,8 @@ Thanks to all contributors:
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/yshui"><img src="https://avatars.githubusercontent.com/u/366851?v=4?s=100" width="100px;" alt="Yuxuan Shui"/><br /><sub><b>Yuxuan Shui</b></sub></a><br /><a href="https://github.com/ClementTsang/bottom/commits?author=yshui" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://zongwenqing.com"><img src="https://avatars.githubusercontent.com/u/43934749?v=4?s=100" width="100px;" alt="Wenqing Zong"/><br /><sub><b>Wenqing Zong</b></sub></a><br /><a href="https://github.com/ClementTsang/bottom/commits?author=WenqingZong" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://gabelluardo.github.io"><img src="https://avatars.githubusercontent.com/u/42920247?v=4?s=100" width="100px;" alt="Gabriele Belluardo"/><br /><sub><b>Gabriele Belluardo</b></sub></a><br /><a href="https://github.com/ClementTsang/bottom/commits?author=gabelluardo" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://zebulon.dev/"><img src="https://avatars.githubusercontent.com/u/14242997?v=4?s=100" width="100px;" alt="Zeb Piasecki"/><br /><sub><b>Zeb Piasecki</b></sub></a><br /><a href="https://github.com/ClementTsang/bottom/commits?author=zebp" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

@@ -12,13 +12,15 @@ use layout_manager::*;
 pub use states::*;
 use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
-use crate::widgets::{ProcWidgetColumn, ProcWidgetMode};
 use crate::{
     constants,
     data_conversion::ConvertedData,
-    units::data_units::DataUnit,
     utils::error::{BottomError, Result},
     Pid,
+};
+use crate::{
+    utils::data_units::DataUnit,
+    widgets::{ProcWidgetColumn, ProcWidgetMode},
 };
 
 pub mod data_farmer;
@@ -43,7 +45,7 @@ pub enum AxisScaling {
 /// by config files or launch options.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct AppConfigFields {
-    pub update_rate_in_milliseconds: u64,
+    pub update_rate: u64,
     pub temperature_type: temperature::TemperatureType,
     pub use_dot: bool,
     pub left_legend: bool,
@@ -58,7 +60,7 @@ pub struct AppConfigFields {
     pub use_old_network_legend: bool,
     pub table_gap: u16,
     pub disable_click: bool,
-    pub enable_gpu_memory: bool,
+    pub enable_gpu: bool,
     pub enable_cache_memory: bool,
     pub show_table_scroll_position: bool,
     pub is_advanced_kill: bool,
@@ -691,7 +693,7 @@ impl App {
                     }
                 }
                 BottomWidgetType::Battery => {
-                    if !self.converted_data.battery_data.is_empty() {
+                    if self.converted_data.battery_data.len() > 1 {
                         if let Some(battery_widget_state) = self
                             .states
                             .battery_state
@@ -752,7 +754,7 @@ impl App {
                     }
                 }
                 BottomWidgetType::Battery => {
-                    if !self.converted_data.battery_data.is_empty() {
+                    if self.converted_data.battery_data.len() > 1 {
                         let battery_count = self.converted_data.battery_data.len();
                         if let Some(battery_widget_state) = self
                             .states
@@ -1273,6 +1275,30 @@ impl App {
                     .get_mut_widget_state(self.current_widget.widget_id)
                 {
                     disk.set_index(3);
+                }
+            }
+            #[cfg(feature = "gpu")]
+            'M' => {
+                if let BottomWidgetType::Proc = self.current_widget.widget_type {
+                    if let Some(proc_widget_state) = self
+                        .states
+                        .proc_state
+                        .get_mut_widget_state(self.current_widget.widget_id)
+                    {
+                        proc_widget_state.select_column(ProcWidgetColumn::GpuMem);
+                    }
+                }
+            }
+            #[cfg(feature = "gpu")]
+            'C' => {
+                if let BottomWidgetType::Proc = self.current_widget.widget_type {
+                    if let Some(proc_widget_state) = self
+                        .states
+                        .proc_state
+                        .get_mut_widget_state(self.current_widget.widget_id)
+                    {
+                        proc_widget_state.select_column(ProcWidgetColumn::GpuUtil);
+                    }
                 }
             }
             '?' => {
@@ -2171,8 +2197,10 @@ impl App {
                     .widget_states
                     .get_mut(&self.current_widget.widget_id)
                 {
-                    let new_time = cpu_widget_state.current_display_time
-                        + self.app_config_fields.time_interval;
+                    let new_time = cpu_widget_state
+                        .current_display_time
+                        .saturating_add(self.app_config_fields.time_interval);
+
                     if new_time <= self.app_config_fields.retention_ms {
                         cpu_widget_state.current_display_time = new_time;
                         self.states.cpu_state.force_update = Some(self.current_widget.widget_id);
@@ -2197,8 +2225,10 @@ impl App {
                     .widget_states
                     .get_mut(&self.current_widget.widget_id)
                 {
-                    let new_time = mem_widget_state.current_display_time
-                        + self.app_config_fields.time_interval;
+                    let new_time = mem_widget_state
+                        .current_display_time
+                        .saturating_add(self.app_config_fields.time_interval);
+
                     if new_time <= self.app_config_fields.retention_ms {
                         mem_widget_state.current_display_time = new_time;
                         self.states.mem_state.force_update = Some(self.current_widget.widget_id);
@@ -2223,8 +2253,10 @@ impl App {
                     .widget_states
                     .get_mut(&self.current_widget.widget_id)
                 {
-                    let new_time = net_widget_state.current_display_time
-                        + self.app_config_fields.time_interval;
+                    let new_time = net_widget_state
+                        .current_display_time
+                        .saturating_add(self.app_config_fields.time_interval);
+
                     if new_time <= self.app_config_fields.retention_ms {
                         net_widget_state.current_display_time = new_time;
                         self.states.net_state.force_update = Some(self.current_widget.widget_id);
@@ -2255,8 +2287,10 @@ impl App {
                     .widget_states
                     .get_mut(&self.current_widget.widget_id)
                 {
-                    let new_time = cpu_widget_state.current_display_time
-                        - self.app_config_fields.time_interval;
+                    let new_time = cpu_widget_state
+                        .current_display_time
+                        .saturating_sub(self.app_config_fields.time_interval);
+
                     if new_time >= constants::STALE_MIN_MILLISECONDS {
                         cpu_widget_state.current_display_time = new_time;
                         self.states.cpu_state.force_update = Some(self.current_widget.widget_id);
@@ -2281,8 +2315,10 @@ impl App {
                     .widget_states
                     .get_mut(&self.current_widget.widget_id)
                 {
-                    let new_time = mem_widget_state.current_display_time
-                        - self.app_config_fields.time_interval;
+                    let new_time = mem_widget_state
+                        .current_display_time
+                        .saturating_sub(self.app_config_fields.time_interval);
+
                     if new_time >= constants::STALE_MIN_MILLISECONDS {
                         mem_widget_state.current_display_time = new_time;
                         self.states.mem_state.force_update = Some(self.current_widget.widget_id);
@@ -2307,8 +2343,10 @@ impl App {
                     .widget_states
                     .get_mut(&self.current_widget.widget_id)
                 {
-                    let new_time = net_widget_state.current_display_time
-                        - self.app_config_fields.time_interval;
+                    let new_time = net_widget_state
+                        .current_display_time
+                        .saturating_sub(self.app_config_fields.time_interval);
+
                     if new_time >= constants::STALE_MIN_MILLISECONDS {
                         net_widget_state.current_display_time = new_time;
                         self.states.net_state.force_update = Some(self.current_widget.widget_id);
@@ -2688,7 +2726,14 @@ impl App {
                                 {
                                     if (x >= *tlc_x && y >= *tlc_y) && (x <= *brc_x && y <= *brc_y)
                                     {
-                                        battery_widget_state.currently_selected_battery_index = itx;
+                                        if itx >= self.converted_data.battery_data.len() {
+                                            // range check to keep within current data
+                                            battery_widget_state.currently_selected_battery_index =
+                                                self.converted_data.battery_data.len() - 1;
+                                        } else {
+                                            battery_widget_state.currently_selected_battery_index =
+                                                itx;
+                                        }
                                         break;
                                     }
                                 }

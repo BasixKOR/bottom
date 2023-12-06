@@ -15,7 +15,6 @@ on:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_HUSKY_DONT_INSTALL_HOOKS: true
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -48,7 +47,7 @@ jobs:
           - { os: "windows-2019", target: "x86_64-pc-windows-msvc" }
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@b44cb146d03e8d870c57ab64b80f04586349ca5d
@@ -56,7 +55,7 @@ jobs:
           toolchain: stable
 
       - name: Enable Rust cache
-        uses: Swatinem/rust-cache@988c164c3d0e93c4dbab36aaf5bbeb77425b2894 # 2.4.0
+        uses: Swatinem/rust-cache@a95ba195448af2da9b00fb742d14ffaaf3c21f43 # 2.7.0
         if: ${{ github.event_name != 'pull_request' || ! github.event.pull_request.head.repo.fork }} # If it is a PR, only if not a fork
         with:
           key: ${{ matrix.info.target }}
@@ -65,7 +64,7 @@ jobs:
       - name: Install cargo-llvm-cov
         run: |
           rustup component add llvm-tools-preview
-          cargo install cargo-llvm-cov --version 0.5.9 --locked
+          cargo install cargo-llvm-cov --version 0.5.37 --locked
 
       - name: Generate code coverage
         run: |

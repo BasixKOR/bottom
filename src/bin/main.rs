@@ -3,15 +3,6 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::missing_safety_doc)]
 
-// Primarily used for debug purposes.
-cfg_if::cfg_if! {
-    if #[cfg(feature = "log")] {
-        #[allow(unused_imports)]
-        #[macro_use]
-        extern crate log;
-    }
-}
-
 use std::{
     boxed::Box,
     io::stdout,
@@ -43,21 +34,23 @@ use bottom::{
 fn main() -> Result<()> {
     // let _profiler = dhat::Profiler::new_heap();
 
-    let matches = clap::get_matches();
-    #[cfg(all(feature = "fern"))]
+    let matches = args::get_matches();
+
+    #[cfg(feature = "logging")]
     {
-        if let Err(err) =
-            utils::logging::init_logger(log::LevelFilter::Debug, std::ffi::OsStr::new("debug.log"))
-        {
+        if let Err(err) = init_logger(log::LevelFilter::Debug, std::ffi::OsStr::new("debug.log")) {
             println!("Issue initializing logger: {err}");
         }
     }
 
     // Read from config file.
-    let config_path = read_config(matches.get_one::<String>("config_location"))
-        .context("Unable to access the given config file location.")?;
-    let mut config: Config = create_or_get_config(&config_path)
-        .context("Unable to properly parse or create the config file.")?;
+    let config = {
+        let config_path = read_config(matches.get_one::<String>("config_location"))
+            .context("Unable to access the given config file location.")?;
+
+        create_or_get_config(&config_path)
+            .context("Unable to properly parse or create the config file.")?
+    };
 
     // Get widget layout separately
     let (widget_layout, default_widget_id, default_widget_type_option) =
@@ -72,8 +65,8 @@ fn main() -> Result<()> {
 
     // Create an "app" struct, which will control most of the program and store settings/state
     let mut app = build_app(
-        &matches,
-        &mut config,
+        matches,
+        config,
         &widget_layout,
         default_widget_id,
         &default_widget_type_option,

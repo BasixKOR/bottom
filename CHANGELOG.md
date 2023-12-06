@@ -5,36 +5,93 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.2] - Unreleased
+## [0.9.7]/[0.10.0] - Unreleased
 
-## Bug Fixes
+### Features
+
+- [#1276](https://github.com/ClementTsang/bottom/pull/1276): Add GPU process info.
+
+### Changes
+
+- [#1344](https://github.com/ClementTsang/bottom/pull/1344): Change the `group` command line argument to `group_processes` for consistency with the config file option.
+
+### Bug Fixes
+
+- [#1314](https://github.com/ClementTsang/bottom/pull/1314): Fix fat32 mounts not showing up in macOS.
+
+## [0.9.6] - 2023-08-26
+
+### Other
+
+- [#1286](https://github.com/ClementTsang/bottom/pull/1286): Pin serde to 1.0.188 to help with potential `cargo install` issues. Note this version should be fine and not pull in binaries.
+
+## [0.9.5] - 2023-08-26
+
+### Other
+
+- [#1278](https://github.com/ClementTsang/bottom/pull/1278): Pin serde to 1.0.171.
+
+## [0.9.4] - 2023-08-05
+
+### Features
+
+- [#1248](https://github.com/ClementTsang/bottom/pull/1248): Add I/O counters from ZFS for Linux and FreeBSD.
+
+### Changes
+
+- [#1236](https://github.com/ClementTsang/bottom/pull/1236): Hide the battery tab selector if there is only one battery detected.
+- [#1251](https://github.com/ClementTsang/bottom/pull/1251): Make the charge meter take the entire width of the battery widget.
+
+### Bug Fixes
+
+- [#1230](https://github.com/ClementTsang/bottom/pull/1230): Fix core dump if the terminal is closed while bottom is open.
+- [#1245](https://github.com/ClementTsang/bottom/pull/1245): Fix killing processes in Windows leaving a handle open.
+- [#1264](https://github.com/ClementTsang/bottom/pull/1264): Fix ARC usage showing max system memory instead of max ARC size.
+
+## [0.9.3] - 2023-06-25
+
+### Features
+
+- [#1221](https://github.com/ClementTsang/bottom/pull/1221): Support human times for `rate`.
+
+### Bug Fixes
+
+- [#1216](https://github.com/ClementTsang/bottom/pull/1216): Fix arguments not being sorted alphabetically.
+- [#1219](https://github.com/ClementTsang/bottom/pull/1219): Fix overflow/underflow in graph timespan zoom.
+
+### Other
+
+- [#1206](https://github.com/ClementTsang/bottom/pull/1206): Add `.rpm` package generation.
+- [#1220](https://github.com/ClementTsang/bottom/pull/1220): Update documentation for features supporting human times.
+
+## [0.9.2] - 2023-06-11
+
+### Features
+
+- [#1172](https://github.com/ClementTsang/bottom/pull/1172): Support human times for `time_delta` and `default_time_value`.
+- [#1187](https://github.com/ClementTsang/bottom/pull/1187): Use better names for duplicate temp sensors found by `/sys/class/thermal`.
+- [#1188](https://github.com/ClementTsang/bottom/pull/1188): Also check `/sys/devices/platform/coretemp.*` for temp sensors.
+
+### Bug Fixes
 
 - [#1186](https://github.com/ClementTsang/bottom/pull/1186): Fix for temperature sensor data gathering on Linux immediately halting if any method failed.
 - [#1191](https://github.com/ClementTsang/bottom/pull/1191): Fix ntfs3 mounts not being counted as a physical drive type.
 - [#1195](https://github.com/ClementTsang/bottom/pull/1195): Fix battery health being incorrectly reported on M1 macOS.
+- [#1188](https://github.com/ClementTsang/bottom/pull/1188): Don't fail fast with temperature sensor name generation on Linux.
 
-## Features
+### Other
 
-- [#1172](https://github.com/ClementTsang/bottom/pull/1172): Support human times for `time_delta` and `default_time_value`.
-- [#1187](https://github.com/ClementTsang/bottom/pull/1187): Use better names for duplicate temp sensors found by `/sys/class/thermal`.
+- [#1199](https://github.com/ClementTsang/bottom/pull/1199): bottom should build on `aarch64-linux-android` with features disabled.
 
 ## [0.9.1] - 2023-05-14
 
-## Bug Fixes
+### Bug Fixes
 
 - [#1148](https://github.com/ClementTsang/bottom/pull/1148): Fix Gruvbox colour string being invalid when cache usage is enabled.
 
 ## [0.9.0] - 2023-05-10
 
-## Bug Fixes
-
-- [#1021](https://github.com/ClementTsang/bottom/pull/1021): Fix selected text background colour being wrong if only the foreground colour was set.
-- [#1037](https://github.com/ClementTsang/bottom/pull/1037): Fix `is_list_ignored` accepting all results if set to `false`.
-- [#1064](https://github.com/ClementTsang/bottom/pull/1064): Disk name/mount filter now doesn't always show all entries if one filter wasn't set.
-- [#1064](https://github.com/ClementTsang/bottom/pull/1064): macOS disk I/O is potentially working now.
-- [#597](https://github.com/ClementTsang/bottom/issues/597): Resolve RUSTSEC-2021-0119 by removing heim.
-
-## Features
+### Features
 
 - [#1016](https://github.com/ClementTsang/bottom/pull/1016): Add support for displaying process usernames on Windows.
 - [#1022](https://github.com/ClementTsang/bottom/pull/1022): Support three-character hex colour strings for styling.
@@ -44,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#1115](https://github.com/ClementTsang/bottom/pull/1115): Add customizable process columns to config file.
 - [#801](https://github.com/ClementTsang/bottom/pull/801): Add optional process time column and querying.
 
-## Changes
+### Changes
 
 - [#1025](https://github.com/ClementTsang/bottom/pull/1025): Officially support M1 macOS.
 - [#1035](https://github.com/ClementTsang/bottom/pull/1035): Migrate away from heim for CPU information.
@@ -55,7 +112,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#1075](https://github.com/ClementTsang/bottom/issues/1075): Update how drives are named in Windows.
 - [#1106](https://github.com/ClementTsang/bottom/pull/1106): Rename battery consumption field to rate.
 
-## Other
+### Bug Fixes
+
+- [#1021](https://github.com/ClementTsang/bottom/pull/1021): Fix selected text background colour being wrong if only the foreground colour was set.
+- [#1037](https://github.com/ClementTsang/bottom/pull/1037): Fix `is_list_ignored` accepting all results if set to `false`.
+- [#1064](https://github.com/ClementTsang/bottom/pull/1064): Disk name/mount filter now doesn't always show all entries if one filter wasn't set.
+- [#1064](https://github.com/ClementTsang/bottom/pull/1064): macOS disk I/O is potentially working now.
+- [#597](https://github.com/ClementTsang/bottom/issues/597): Resolve RUSTSEC-2021-0119 by removing heim.
+
+### Other
 
 - [#1100](https://github.com/ClementTsang/bottom/pull/1100): Speed up first draw and first data collection.
 - [#1107](https://github.com/ClementTsang/bottom/pull/1107): Update to clap v4.
@@ -63,57 +128,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0] - 2023-01-22
 
-## Bug Fixes
-
-- [#950](https://github.com/ClementTsang/bottom/pull/950): Update help menu for disk and temperature widgets with sorting support.
-- [#994](https://github.com/ClementTsang/bottom/pull/994): Fix time graph labels not being styled.
-
-## Features
+### Features
 
 - [#950](https://github.com/ClementTsang/bottom/pull/950): Split usage into both usage percentage and usage value.
 
-## Changes
+### Changes
 
 - [#974](https://github.com/ClementTsang/bottom/pull/974): Hide battery duration section if the value is unknown. Also update shortened text.
 - [#975](https://github.com/ClementTsang/bottom/pull/975): Automatically hide the battery widget if no batteries are found but `--battery` is enabled.
 
-## Other
+### Bug Fixes
+
+- [#950](https://github.com/ClementTsang/bottom/pull/950): Update help menu for disk and temperature widgets with sorting support.
+- [#994](https://github.com/ClementTsang/bottom/pull/994): Fix time graph labels not being styled.
+
+### Other
 
 - [#969](https://github.com/ClementTsang/bottom/pull/969): Follow Debian conventions for naming generated `.deb` binaries.
 
 ## [0.7.1] - 2023-01-06
 
-## Bug Fixes
+### Bug Fixes
 
 - [#950](https://github.com/ClementTsang/bottom/pull/950): Fix invalid sorting order for disk usage percentage.
 - [#952](https://github.com/ClementTsang/bottom/pull/952), [#960](https://github.com/ClementTsang/bottom/pull/960): Partially fix battery text getting cut off in small windows.
 - [#953](https://github.com/ClementTsang/bottom/pull/953): Fix CPU widget's 'all' label being missing on small sizes.
 
-## Other
+### Other
 
 - [#951](https://github.com/ClementTsang/bottom/pull/951): Nightly builds now have their version number (`btm -V`) tagged with the commit hash.
 
 ## [0.7.0] - 2022-12-31
 
-## Bug Fixes
-
-- [#711](https://github.com/ClementTsang/bottom/pull/711): Fix building in Rust beta 1.61 due to `as_ref()` calls causing type inference issues.
-- [#717](https://github.com/ClementTsang/bottom/pull/717): Fix clicking on empty space in tables selecting the very last entry of a list in some cases.
-- [#720](https://github.com/ClementTsang/bottom/pull/720): Fix panic if battery feature was disabled during compilation.
-- [#805](https://github.com/ClementTsang/bottom/pull/805): Fix bottom keeping devices awake in certain scenarios.
-- [#825](https://github.com/ClementTsang/bottom/pull/825): Use alternative method of getting parent PID in some cases on macOS devices to avoid needing root access.
-- [#916](https://github.com/ClementTsang/bottom/pull/916): Fix possible gaps with widget layout spacing.
-- [#938](https://github.com/ClementTsang/bottom/pull/938): Fix search scrolling with wider Unicode characters.
-
-## Changes
-
-- [#690](https://github.com/ClementTsang/bottom/pull/690): Add some colour to `-h`/`--help` as part of updating to clap 3.0.
-- [#726](https://github.com/ClementTsang/bottom/pull/726): Add ARM musl binary build tasks.
-- [#807](https://github.com/ClementTsang/bottom/pull/807): Add more human friendly temperature sensor names for Linux.
-- [#845](https://github.com/ClementTsang/bottom/pull/845), [#922](https://github.com/ClementTsang/bottom/pull/922): Add macOS M1, FreeBSD 12, and FreeBSD 13 binary build tasks.
-- [#916](https://github.com/ClementTsang/bottom/pull/916), [#937](https://github.com/ClementTsang/bottom/pull/937): Improve CPU usage by optimizing draw logic of charts and tables.
-
-## Features
+### Features
 
 - [#676](https://github.com/ClementTsang/bottom/pull/676): Add support for NVIDIA GPU temperature sensors.
 - [#760](https://github.com/ClementTsang/bottom/pull/760): Add a check for whether bottom is being run in a terminal.
@@ -131,69 +178,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [#899](https://github.com/ClementTsang/bottom/pull/899), [#910](https://github.com/ClementTsang/bottom/pull/910), [#912](https://github.com/ClementTsang/bottom/pull/912): Add non-normalized CPU usage to processes.
 - [#919](https://github.com/ClementTsang/bottom/pull/919): Add an option to expand the default widget on startup.
 
+### Changes
+
+- [#690](https://github.com/ClementTsang/bottom/pull/690): Add some colour to `-h`/`--help` as part of updating to clap 3.0.
+- [#726](https://github.com/ClementTsang/bottom/pull/726): Add ARM musl binary build tasks.
+- [#807](https://github.com/ClementTsang/bottom/pull/807): Add more human friendly temperature sensor names for Linux.
+- [#845](https://github.com/ClementTsang/bottom/pull/845), [#922](https://github.com/ClementTsang/bottom/pull/922): Add macOS M1, FreeBSD 12, and FreeBSD 13 binary build tasks.
+- [#916](https://github.com/ClementTsang/bottom/pull/916), [#937](https://github.com/ClementTsang/bottom/pull/937): Improve CPU usage by optimizing draw logic of charts and tables.
+
+### Bug Fixes
+
+- [#711](https://github.com/ClementTsang/bottom/pull/711): Fix building in Rust beta 1.61 due to `as_ref()` calls causing type inference issues.
+- [#717](https://github.com/ClementTsang/bottom/pull/717): Fix clicking on empty space in tables selecting the very last entry of a list in some cases.
+- [#720](https://github.com/ClementTsang/bottom/pull/720): Fix panic if battery feature was disabled during compilation.
+- [#805](https://github.com/ClementTsang/bottom/pull/805): Fix bottom keeping devices awake in certain scenarios.
+- [#825](https://github.com/ClementTsang/bottom/pull/825): Use alternative method of getting parent PID in some cases on macOS devices to avoid needing root access.
+- [#916](https://github.com/ClementTsang/bottom/pull/916): Fix possible gaps with widget layout spacing.
+- [#938](https://github.com/ClementTsang/bottom/pull/938): Fix search scrolling with wider Unicode characters.
+
 ## [0.6.8] - 2022-02-01
 
-## Bug Fixes
+### Bug Fixes
 
 - [#655](https://github.com/ClementTsang/bottom/pull/669): Fix a bug where the number of CPUs is never refreshed.
 
 ## [0.6.7] - 2022-01-31
 
-## Features
+### Features
 
 - [#646](https://github.com/ClementTsang/bottom/pull/646): Add `PgUp`/`PgDown` keybind support to scroll up and down a page in a table.
 
-## Bug Fixes
+### Bug Fixes
 
 - [#655](https://github.com/ClementTsang/bottom/pull/665): Fix bug where the program would stall in an infinite loop if the width of the terminal was too small.
 
-## Other
+### Other
 
 - [#658](https://github.com/ClementTsang/bottom/pull/658): Update sysinfo.
 
 ## [0.6.6] - 2021-12-22
 
-## Bug Fixes
-
-- [#637](https://github.com/ClementTsang/bottom/pull/637): Fix process CPU calculation if /proc/stat CPU line has less values than expected
-
-## Changes
+### Changes
 
 - [#637](https://github.com/ClementTsang/bottom/pull/637): Remove duplicate guest time in process CPU calculation
 
+### Bug Fixes
+
+- [#637](https://github.com/ClementTsang/bottom/pull/637): Fix process CPU calculation if /proc/stat CPU line has fewer values than expected
+
 ## [0.6.5] - 2021-12-19
 
-## Bug Fixes
+### Bug Fixes
 
 - [#600](https://github.com/ClementTsang/bottom/pull/600): Address RUSTSEC-2020-0071
 - [#627](https://github.com/ClementTsang/bottom/pull/627): Fix `process_command` breaking process widget sorting.
 
-## Internal Changes
+### Internal Changes
 
 - [#608](https://github.com/ClementTsang/bottom/pull/608): Add codecov integration to pipeline.
 
 ## [0.6.4] - 2021-09-12
 
-## Changes
+### Changes
 
 - [#557](https://github.com/ClementTsang/bottom/pull/557): Add '/s' to network usage legend to better indicate that it's a per-second change.
 
-## Bug Fixes
+### Bug Fixes
 
 - [#575](https://github.com/ClementTsang/bottom/pull/575): Updates the procfs library to not crash on kernel version >255.
 
-## Internal Changes
+### Internal Changes
 
 - [#551](https://github.com/ClementTsang/bottom/pull/551): Disable AUR package generation in release pipeline since it's now in community.
 - [#570](https://github.com/ClementTsang/bottom/pull/570): Make battery features optional in compilation.
 
 ## [0.6.3] - 2021-07-18
 
-## Changes
+### Changes
 
 - [#547](https://github.com/ClementTsang/bottom/pull/547): Switch Linux memory usage calculation to match htop.
 
-## Bug Fixes
+### Bug Fixes
 
 - [#536](https://github.com/ClementTsang/bottom/pull/536): Prevent tests from creating a config file.
 
@@ -203,29 +268,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.2] - 2021-06-26
 
-## Features
+### Features
 
 - [#518](https://github.com/ClementTsang/bottom/pull/518): Add `F9` key as an alternative process kill key.
 
-## Bug Fixes
+### Bug Fixes
 
 - [#504](https://github.com/ClementTsang/bottom/pull/504): Fix two bugs causing the battery widget colours and mouse events to be broken.
 
 - [#525](https://github.com/ClementTsang/bottom/pull/525): Fix Windows process CPU usage not being divided by the number of cores.
 
-## Internal Changes
+### Internal Changes
 
 - [#506](https://github.com/ClementTsang/bottom/pull/506): Migrate a large portion of documentation over to mkdocs.
 
 ## [0.6.1] - 2021-05-11
 
-## Bug Fixes
+### Bug Fixes
 
 - [#473](https://github.com/ClementTsang/bottom/pull/473): Fix missing string creation for memory usage in collapsed entries.
 
 ## [0.6.0] - 2021-05-09
 
-## Features
+### Features
 
 - [#263](https://github.com/ClementTsang/bottom/pull/263): Add the option for fine-grained kill signals on Unix-like systems.
 
@@ -249,7 +314,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#445](https://github.com/ClementTsang/bottom/pull/445): Add collapsing in tree mode sums usage to parent.
 
-## Changes
+### Changes
 
 - [#372](https://github.com/ClementTsang/bottom/pull/372): Hide the SWAP graph and legend in normal mode if SWAP is 0.
 
@@ -273,7 +338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#455](https://github.com/ClementTsang/bottom/pull/455): Add a mount point filter for the disk widget. Also tweaked how the filter system works - see the PR for details.
 
-## Bug Fixes
+### Bug Fixes
 
 - [#416](https://github.com/ClementTsang/bottom/pull/416): Fix grouped vs ungrouped modes in the processes widget having inconsistent spacing.
 
@@ -287,7 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.7] - 2021-01-30
 
-## Bug Fixes
+### Bug Fixes
 
 - [#373](https://github.com/ClementTsang/bottom/pull/373): Fix incorrect colours being used the CPU widget in basic mode.
 
@@ -299,23 +364,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.6] - 2020-12-17
 
-## Bug Fixes
+### Bug Fixes
 
 - [#361](https://github.com/ClementTsang/bottom/pull/361): Fix temperature sensors not working on non-Linux platforms.
 
 ## [0.5.5] - 2020-12-14
 
-## Bug Fixes
+### Bug Fixes
 
 - [#349](https://github.com/ClementTsang/bottom/pull/349): Fix CPU graph colours not matching the legend in the "all" state.
 
 ## [0.5.4] - 2020-12-10
 
-## Changes
+### Changes
 
 - [#344](https://github.com/ClementTsang/bottom/pull/344): Removed the `--debug` option for now.
 
-## Bug Fixes
+### Bug Fixes
 
 - [#344](https://github.com/ClementTsang/bottom/pull/344): Fix a performance regression causing high memory and CPU usage over time.
 
@@ -323,27 +388,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.3] - 2020-11-26
 
-## Bug Fixes
+### Bug Fixes
 
 - [#331](https://github.com/ClementTsang/bottom/pull/331): Fix custom battery colour levels being inverted.
 
 ## [0.5.2] - 2020-11-25
 
-## Bug Fixes
+### Bug Fixes
 
 - [#327](https://github.com/ClementTsang/bottom/pull/327): Fix `hide_avg_cpu` being inverted in config files.
 
 ## [0.5.1] - 2020-11-22
 
-## Bug Fixes
+### Bug Fixes
 
 - [6ef1d66](https://github.com/ClementTsang/bottom/commit/6ef1d66b2bca49452572a2cabb87d338dcf56e7b): Remove nord as a valid colour for now.
 
 - [e04ce4f](https://github.com/ClementTsang/bottom/commit/e04ce4fa1b42e99f00cf8825bcd58da43552214e): Fix `--use_old_network_legend`.
 
 - [99d0402](https://github.com/ClementTsang/bottom/commit/99d04029f0ebfc73d36adb06ea58ad68f090017c): Fix config detection for built-in colours.
-
-### Bug Fixes
 
 ## [0.5.0] - 2020-11-20
 
@@ -371,7 +434,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [#213](https://github.com/ClementTsang/bottom/pull/213), [#214](https://github.com/ClementTsang/bottom/pull/214): Updated help descriptions, added auto-complete generation.
 
-- [#296](https://github.com/ClementTsang/bottom/pull/296): Changed how we do battery theming. We now only set high, medium, and low colours and we deal with the ratios.
+- [#296](https://github.com/ClementTsang/bottom/pull/296): Changed how we do battery theming. We now only set high, medium, and low colours, and we deal with the ratios.
 
 ### Bug Fixes
 
@@ -444,7 +507,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.5] - 2020-07-08
 
-- No changes here, just an uptick for Crates.io using the wrong Cargo.lock.
+- No changes in this update, just an uptick for Crates.io using the wrong Cargo.lock.
 
 ## [0.4.4] - 2020-07-06
 
@@ -454,7 +517,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changes
 
-- [#156](https://github.com/ClementTsang/bottom/issues/156) - Removal of the `/` CPU core showing in the chart. It felt clunky to use, was not really useful, and hard to work with with large core counts.
+- [#156](https://github.com/ClementTsang/bottom/issues/156) - Removal of the `/` CPU core showing in the chart. It felt clunky to use, was not really useful, and hard to work with large core counts.
 
   Furthermore:
 
@@ -562,7 +625,7 @@ is equivalent to:
 
 - Fixed bug where empty widgets in layout would cause widget movement to not work properly when moving vertically.
 
-### Development changes
+### Internal changes
 
 - [#38](https://github.com/ClementTsang/bottom/issues/38): Updated arg tests and added config testing.
 
@@ -600,7 +663,7 @@ is equivalent to:
 
 - [#33](https://github.com/ClementTsang/bottom/issues/33): Fix bug with search and graphemes bigger than a byte crashing due to the cursor.
 
-- [#41](https://github.com/ClementTsang/bottom/issues/41): Fix bug that caused the cursor to go off screen while searching.
+- [#41](https://github.com/ClementTsang/bottom/issues/41): Fix bug that caused the cursor to go off-screen while searching.
 
 - [#61](https://github.com/ClementTsang/bottom/issues/61): Dialog boxes set to be a constant width/height.
 

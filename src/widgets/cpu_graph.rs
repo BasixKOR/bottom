@@ -46,7 +46,7 @@ impl ColumnHeader for CpuWidgetColumn {
     fn text(&self) -> Cow<'static, str> {
         match self {
             CpuWidgetColumn::CPU => "CPU".into(),
-            CpuWidgetColumn::Use => "Use%".into(),
+            CpuWidgetColumn::Use => "Use".into(),
         }
     }
 }
@@ -76,7 +76,7 @@ impl CpuWidgetTableData {
 }
 
 impl DataToCell<CpuWidgetColumn> for CpuWidgetTableData {
-    fn to_cell<'a>(&'a self, column: &CpuWidgetColumn, calculated_width: u16) -> Option<Text<'a>> {
+    fn to_cell(&self, column: &CpuWidgetColumn, calculated_width: u16) -> Option<Text<'_>> {
         const CPU_TRUNCATE_BREAKPOINT: u16 = 5;
 
         // This is a bit of a hack, but apparently we can avoid having to do any fancy checks

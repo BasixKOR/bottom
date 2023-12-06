@@ -1,48 +1,10 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, num::NonZeroUsize};
 
 use tui::text::{Line, Span, Text};
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-pub const KILO_LIMIT: u64 = 1000;
-pub const MEGA_LIMIT: u64 = 1_000_000;
-pub const GIGA_LIMIT: u64 = 1_000_000_000;
-pub const TERA_LIMIT: u64 = 1_000_000_000_000;
-pub const KIBI_LIMIT: u64 = 1024;
-pub const MEBI_LIMIT: u64 = 1024 * 1024;
-pub const GIBI_LIMIT: u64 = 1024 * 1024 * 1024;
-pub const TEBI_LIMIT: u64 = 1024 * 1024 * 1024 * 1024;
-
-pub const KILO_LIMIT_F64: f64 = 1000.0;
-pub const MEGA_LIMIT_F64: f64 = 1_000_000.0;
-pub const GIGA_LIMIT_F64: f64 = 1_000_000_000.0;
-pub const TERA_LIMIT_F64: f64 = 1_000_000_000_000.0;
-pub const KIBI_LIMIT_F64: f64 = 1024.0;
-pub const MEBI_LIMIT_F64: f64 = 1024.0 * 1024.0;
-pub const GIBI_LIMIT_F64: f64 = 1024.0 * 1024.0 * 1024.0;
-pub const TEBI_LIMIT_F64: f64 = 1024.0 * 1024.0 * 1024.0 * 1024.0;
-
-pub const LOG_KILO_LIMIT: f64 = 3.0;
-pub const LOG_MEGA_LIMIT: f64 = 6.0;
-pub const LOG_GIGA_LIMIT: f64 = 9.0;
-pub const LOG_TERA_LIMIT: f64 = 12.0;
-pub const LOG_PETA_LIMIT: f64 = 15.0;
-
-pub const LOG_KIBI_LIMIT: f64 = 10.0;
-pub const LOG_MEBI_LIMIT: f64 = 20.0;
-pub const LOG_GIBI_LIMIT: f64 = 30.0;
-pub const LOG_TEBI_LIMIT: f64 = 40.0;
-pub const LOG_PEBI_LIMIT: f64 = 50.0;
-
-pub const LOG_KILO_LIMIT_U32: u32 = 3;
-pub const LOG_MEGA_LIMIT_U32: u32 = 6;
-pub const LOG_GIGA_LIMIT_U32: u32 = 9;
-pub const LOG_TERA_LIMIT_U32: u32 = 12;
-
-pub const LOG_KIBI_LIMIT_U32: u32 = 10;
-pub const LOG_MEBI_LIMIT_U32: u32 = 20;
-pub const LOG_GIBI_LIMIT_U32: u32 = 30;
-pub const LOG_TEBI_LIMIT_U32: u32 = 40;
+use super::data_prefixes::*;
 
 /// Returns a tuple containing the value and the unit in bytes.  In units of 1024.
 /// This only supports up to a tebi.  Note the "single" unit will have a space appended to match the others if
@@ -76,10 +38,10 @@ pub fn get_decimal_bytes(bytes: u64) -> (f64, &'static str) {
 pub fn get_binary_prefix(quantity: u64, unit: &str) -> (f64, String) {
     match quantity {
         b if b < KIBI_LIMIT => (quantity as f64, unit.to_string()),
-        b if b < MEBI_LIMIT => (quantity as f64 / 1024.0, format!("Ki{}", unit)),
-        b if b < GIBI_LIMIT => (quantity as f64 / 1_048_576.0, format!("Mi{}", unit)),
-        b if b < TERA_LIMIT => (quantity as f64 / 1_073_741_824.0, format!("Gi{}", unit)),
-        _ => (quantity as f64 / 1_099_511_627_776.0, format!("Ti{}", unit)),
+        b if b < MEBI_LIMIT => (quantity as f64 / 1024.0, format!("Ki{unit}")),
+        b if b < GIBI_LIMIT => (quantity as f64 / 1_048_576.0, format!("Mi{unit}")),
+        b if b < TERA_LIMIT => (quantity as f64 / 1_073_741_824.0, format!("Gi{unit}")),
+        _ => (quantity as f64 / 1_099_511_627_776.0, format!("Ti{unit}")),
     }
 }
 
@@ -89,14 +51,16 @@ pub fn get_binary_prefix(quantity: u64, unit: &str) -> (f64, String) {
 pub fn get_decimal_prefix(quantity: u64, unit: &str) -> (f64, String) {
     match quantity {
         b if b < KILO_LIMIT => (quantity as f64, unit.to_string()),
-        b if b < MEGA_LIMIT => (quantity as f64 / 1000.0, format!("K{}", unit)),
-        b if b < GIGA_LIMIT => (quantity as f64 / 1_000_000.0, format!("M{}", unit)),
-        b if b < TERA_LIMIT => (quantity as f64 / 1_000_000_000.0, format!("G{}", unit)),
-        _ => (quantity as f64 / 1_000_000_000_000.0, format!("T{}", unit)),
+        b if b < MEGA_LIMIT => (quantity as f64 / 1000.0, format!("K{unit}")),
+        b if b < GIGA_LIMIT => (quantity as f64 / 1_000_000.0, format!("M{unit}")),
+        b if b < TERA_LIMIT => (quantity as f64 / 1_000_000_000.0, format!("G{unit}")),
+        _ => (quantity as f64 / 1_000_000_000_000.0, format!("T{unit}")),
     }
 }
 
 /// Truncates text if it is too long, and adds an ellipsis at the end if needed.
+///
+/// TODO: Maybe cache results from this function for some cases? e.g. columns
 pub fn truncate_to_text<'a, U: Into<usize>>(content: &str, width: U) -> Text<'a> {
     Text {
         lines: vec![Line::from(vec![Span::raw(truncate_str(content, width))])],
@@ -131,54 +95,132 @@ fn grapheme_width(g: &str) -> usize {
     }
 }
 
-/// Truncates a string with an ellipsis character.
-///
-/// NB: This probably does not handle EVERY case, but I think it handles most cases
-/// we will use this function for fine... hopefully.
+enum AsciiIterationResult {
+    Complete,
+    Remaining(usize),
+}
+
+/// Greedily add characters to the output until a non-ASCII grapheme is found, or
+/// the output is `width` long.
 #[inline]
-fn truncate_str<U: Into<usize>>(content: &str, width: U) -> String {
-    let width = width.into();
-    let mut text = String::with_capacity(width);
+fn greedy_ascii_add(content: &str, width: NonZeroUsize) -> (String, AsciiIterationResult) {
+    let width: usize = width.into();
 
-    if width > 0 {
-        let mut curr_width = 0;
-        let mut early_break = false;
+    const SIZE_OF_ELLIPSIS: usize = 3;
+    let mut text = Vec::with_capacity(width - 1 + SIZE_OF_ELLIPSIS);
 
-        // This tracks the length of the last added string - note this does NOT match the grapheme *width*.
-        let mut last_added_str_len = 0;
+    let s = content.as_bytes();
 
-        // Cases to handle:
-        // - Completes adding the entire string.
-        // - Adds a character up to the boundary, then fails.
-        // - Adds a character not up to the boundary, then fails.
-        // Inspired by https://tomdebruijn.com/posts/rust-string-length-width-calculations/
-        for g in UnicodeSegmentation::graphemes(content, true) {
-            let g_width = grapheme_width(g);
+    let mut current_index = 0;
 
-            if curr_width + g_width <= width {
-                curr_width += g_width;
-                last_added_str_len = g.len();
-                text.push_str(g);
-            } else {
-                early_break = true;
-                break;
-            }
-        }
+    while current_index < width - 1 {
+        let current_byte = s[current_index];
+        if current_byte.is_ascii() {
+            text.push(current_byte);
+            current_index += 1;
+        } else {
+            debug_assert!(text.is_ascii());
 
-        if early_break {
-            if curr_width == width {
-                // Remove the last grapheme cluster added.
-                text.truncate(text.len() - last_added_str_len);
-            }
-            text.push('…');
+            let current_index = AsciiIterationResult::Remaining(current_index);
+
+            // SAFETY: This conversion is safe to do unchecked, we only push ASCII characters up to
+            // this point.
+            let current_text = unsafe { String::from_utf8_unchecked(text) };
+
+            return (current_text, current_index);
         }
     }
 
-    text
+    // If we made it all the way through, then we probably hit the width limit.
+    debug_assert!(text.is_ascii());
+
+    let current_index = if s[current_index].is_ascii() {
+        let mut ellipsis = [0; SIZE_OF_ELLIPSIS];
+        '…'.encode_utf8(&mut ellipsis);
+        text.extend_from_slice(&ellipsis);
+        AsciiIterationResult::Complete
+    } else {
+        AsciiIterationResult::Remaining(current_index)
+    };
+
+    // SAFETY: This conversion is safe to do unchecked, we only push ASCII characters up to
+    // this point.
+    let current_text = unsafe { String::from_utf8_unchecked(text) };
+
+    (current_text, current_index)
+}
+
+/// Truncates a string to the specified width with an ellipsis character.
+///
+/// NB: This probably does not handle EVERY case, but I think it handles most cases
+/// we will use this function for fine... hopefully.
+///
+/// TODO: Maybe fuzz this function?
+#[inline]
+fn truncate_str<U: Into<usize>>(content: &str, width: U) -> String {
+    let width = width.into();
+
+    if content.len() <= width {
+        // If the entire string fits in the width, then we just
+        // need to copy the entire string over.
+
+        content.to_owned()
+    } else if let Some(nz_width) = NonZeroUsize::new(width) {
+        // What we are essentially doing is optimizing for the case that
+        // most, if not all of the string is ASCII. As such:
+        // - Step through each byte until (width - 1) is hit or we find a non-ascii
+        //   byte.
+        // - If the byte is ascii, then add it.
+        //
+        // If we didn't get a complete truncated string, then continue on treating the rest as graphemes.
+
+        let (mut text, res) = greedy_ascii_add(content, nz_width);
+        match res {
+            AsciiIterationResult::Complete => text,
+            AsciiIterationResult::Remaining(current_index) => {
+                let mut curr_width = text.len();
+                let mut early_break = false;
+
+                // This tracks the length of the last added string - note this does NOT match the grapheme *width*.
+                // Since the previous characters are always ASCII, this is always initialized as 1, unless the string
+                // is empty.
+                let mut last_added_str_len = if text.is_empty() { 0 } else { 1 };
+
+                // Cases to handle:
+                // - Completes adding the entire string.
+                // - Adds a character up to the boundary, then fails.
+                // - Adds a character not up to the boundary, then fails.
+                // Inspired by https://tomdebruijn.com/posts/rust-string-length-width-calculations/
+                for g in UnicodeSegmentation::graphemes(&content[current_index..], true) {
+                    let g_width = grapheme_width(g);
+
+                    if curr_width + g_width <= width {
+                        curr_width += g_width;
+                        last_added_str_len = g.len();
+                        text.push_str(g);
+                    } else {
+                        early_break = true;
+                        break;
+                    }
+                }
+
+                if early_break {
+                    if curr_width == width {
+                        // Remove the last grapheme cluster added.
+                        text.truncate(text.len() - last_added_str_len);
+                    }
+                    text.push('…');
+                }
+                text
+            }
+        }
+    } else {
+        String::default()
+    }
 }
 
 #[inline]
-pub const fn sort_partial_fn<T: std::cmp::PartialOrd>(is_descending: bool) -> fn(T, T) -> Ordering {
+pub const fn sort_partial_fn<T: PartialOrd>(is_descending: bool) -> fn(T, T) -> Ordering {
     if is_descending {
         partial_ordering_desc
     } else {
@@ -188,7 +230,7 @@ pub const fn sort_partial_fn<T: std::cmp::PartialOrd>(is_descending: bool) -> fn
 
 /// Returns an [`Ordering`] between two [`PartialOrd`]s.
 #[inline]
-pub fn partial_ordering<T: std::cmp::PartialOrd>(a: T, b: T) -> Ordering {
+pub fn partial_ordering<T: PartialOrd>(a: T, b: T) -> Ordering {
     a.partial_cmp(&b).unwrap_or(Ordering::Equal)
 }
 
@@ -197,9 +239,69 @@ pub fn partial_ordering<T: std::cmp::PartialOrd>(a: T, b: T) -> Ordering {
 /// This is simply a wrapper function around [`partial_ordering`] that reverses
 /// the result.
 #[inline]
-pub fn partial_ordering_desc<T: std::cmp::PartialOrd>(a: T, b: T) -> Ordering {
+pub fn partial_ordering_desc<T: PartialOrd>(a: T, b: T) -> Ordering {
     partial_ordering(a, b).reverse()
 }
+
+/// Checks that the first string is equal to any of the other ones in a ASCII case-insensitive match.
+///
+/// The generated code is the same as writing:
+/// `to_ascii_lowercase(a) == to_ascii_lowercase(b) || to_ascii_lowercase(a) == to_ascii_lowercase(c)`,
+/// but without allocating and copying temporaries.
+///
+/// # Examples
+///
+/// ```ignore
+/// assert!(multi_eq_ignore_ascii_case!("test", "test"));
+/// assert!(multi_eq_ignore_ascii_case!("test", "a" | "b" | "test"));
+/// assert!(!multi_eq_ignore_ascii_case!("test", "a" | "b" | "c"));
+/// ```
+#[macro_export]
+macro_rules! multi_eq_ignore_ascii_case {
+    ( $lhs:expr, $last:literal ) => {
+        $lhs.eq_ignore_ascii_case($last)
+    };
+    ( $lhs:expr, $head:literal | $($tail:tt)* ) => {
+        $lhs.eq_ignore_ascii_case($head) || multi_eq_ignore_ascii_case!($lhs, $($tail)*)
+    };
+}
+
+/// A trait for additional clamping functions on numeric types.
+pub trait ClampExt {
+    /// Restrict a value by a lower bound. If the current value is _lower_ than `lower_bound`,
+    /// it will be set to `_lower_bound`.
+    fn clamp_lower(&self, lower_bound: Self) -> Self;
+
+    /// Restrict a value by an upper bound. If the current value is _greater_ than `upper_bound`,
+    /// it will be set to `upper_bound`.
+    fn clamp_upper(&self, upper_bound: Self) -> Self;
+}
+
+macro_rules! clamp_num_impl {
+    ( $($NumType:ty),+ $(,)? ) => {
+        $(
+            impl ClampExt for $NumType {
+                fn clamp_lower(&self, lower_bound: Self) -> Self {
+                    if *self < lower_bound {
+                        lower_bound
+                    } else {
+                        *self
+                    }
+                }
+
+                fn clamp_upper(&self, upper_bound: Self) -> Self {
+                    if *self > upper_bound {
+                        upper_bound
+                    } else {
+                        *self
+                    }
+                }
+            }
+        )*
+    };
+}
+
+clamp_num_impl!(u8, u16, u32, u64, usize);
 
 #[cfg(test)]
 mod test {
@@ -224,13 +326,13 @@ mod test {
     }
 
     #[test]
-    fn test_truncate() {
+    fn test_truncate_str() {
         let cpu_header = "CPU(c)▲";
 
         assert_eq!(
             truncate_str(cpu_header, 8_usize),
             cpu_header,
-            "should match base string as there is enough room"
+            "should match base string as there is extra room"
         );
 
         assert_eq!(
@@ -247,13 +349,36 @@ mod test {
     }
 
     #[test]
+    fn test_truncate_ascii() {
+        let content = "0123456";
+
+        assert_eq!(
+            truncate_str(content, 8_usize),
+            content,
+            "should match base string as there is extra room"
+        );
+
+        assert_eq!(
+            truncate_str(content, 7_usize),
+            content,
+            "should match base string as there is enough room"
+        );
+
+        assert_eq!(truncate_str(content, 6_usize), "01234…");
+        assert_eq!(truncate_str(content, 5_usize), "0123…");
+        assert_eq!(truncate_str(content, 4_usize), "012…");
+        assert_eq!(truncate_str(content, 1_usize), "…");
+        assert_eq!(truncate_str(content, 0_usize), "");
+    }
+
+    #[test]
     fn test_truncate_cjk() {
         let cjk = "施氏食獅史";
 
         assert_eq!(
             truncate_str(cjk, 11_usize),
             cjk,
-            "should match base string as there is enough room"
+            "should match base string as there is extra room"
         );
 
         assert_eq!(
@@ -270,13 +395,13 @@ mod test {
     }
 
     #[test]
-    fn test_truncate_mixed() {
+    fn test_truncate_mixed_one() {
         let test = "Test (施氏食獅史) Test";
 
         assert_eq!(
             truncate_str(test, 30_usize),
             test,
-            "should match base string as there is enough room"
+            "should match base string as there is extra room"
         );
 
         assert_eq!(
@@ -291,6 +416,8 @@ mod test {
             "should truncate the t and replace the s with ellipsis"
         );
 
+        assert_eq!(truncate_str(test, 20_usize), "Test (施氏食獅史) T…");
+        assert_eq!(truncate_str(test, 19_usize), "Test (施氏食獅史) …");
         assert_eq!(truncate_str(test, 18_usize), "Test (施氏食獅史)…");
         assert_eq!(truncate_str(test, 17_usize), "Test (施氏食獅史…");
         assert_eq!(truncate_str(test, 16_usize), "Test (施氏食獅…");
@@ -300,6 +427,34 @@ mod test {
         assert_eq!(truncate_str(test, 8_usize), "Test (…");
         assert_eq!(truncate_str(test, 7_usize), "Test (…");
         assert_eq!(truncate_str(test, 6_usize), "Test …");
+        assert_eq!(truncate_str(test, 5_usize), "Test…");
+        assert_eq!(truncate_str(test, 4_usize), "Tes…");
+    }
+
+    #[test]
+    fn test_truncate_mixed_two() {
+        let test = "Test (施氏abc食abc獅史) Test";
+
+        assert_eq!(
+            truncate_str(test, 30_usize),
+            test,
+            "should match base string as there is extra room"
+        );
+
+        assert_eq!(
+            truncate_str(test, 28_usize),
+            test,
+            "should match base string as there is just enough room"
+        );
+
+        assert_eq!(truncate_str(test, 26_usize), "Test (施氏abc食abc獅史) T…");
+        assert_eq!(truncate_str(test, 21_usize), "Test (施氏abc食abc獅…");
+        assert_eq!(truncate_str(test, 20_usize), "Test (施氏abc食abc…");
+        assert_eq!(truncate_str(test, 16_usize), "Test (施氏abc食…");
+        assert_eq!(truncate_str(test, 15_usize), "Test (施氏abc…");
+        assert_eq!(truncate_str(test, 14_usize), "Test (施氏abc…");
+        assert_eq!(truncate_str(test, 11_usize), "Test (施氏…");
+        assert_eq!(truncate_str(test, 10_usize), "Test (施…");
     }
 
     #[test]
@@ -361,7 +516,7 @@ mod test {
     }
 
     #[test]
-    fn test_truncate_emoji() {
+    fn truncate_emoji() {
         let heart = "❤️";
         assert_eq!(truncate_str(heart, 2_usize), heart);
         assert_eq!(truncate_str(heart, 1_usize), heart);
@@ -381,5 +536,58 @@ mod test {
         assert_eq!(truncate_str(scientist, 2_usize), scientist);
         assert_eq!(truncate_str(scientist, 1_usize), "…");
         assert_eq!(truncate_str(scientist, 0_usize), "");
+    }
+
+    #[test]
+    fn test_multi_eq_ignore_ascii_case() {
+        assert!(
+            multi_eq_ignore_ascii_case!("test", "test"),
+            "single comparison should succeed"
+        );
+        assert!(
+            multi_eq_ignore_ascii_case!("test", "a" | "test"),
+            "double comparison should succeed"
+        );
+        assert!(
+            multi_eq_ignore_ascii_case!("test", "a" | "b" | "test"),
+            "multi comparison should succeed"
+        );
+
+        assert!(
+            !multi_eq_ignore_ascii_case!("test", "a"),
+            "single non-matching should fail"
+        );
+        assert!(
+            !multi_eq_ignore_ascii_case!("test", "a" | "b"),
+            "double non-matching should fail"
+        );
+        assert!(
+            !multi_eq_ignore_ascii_case!("test", "a" | "b" | "c"),
+            "multi non-matching should fail"
+        );
+    }
+
+    #[test]
+    fn test_clamp_upper() {
+        let val: usize = 100;
+        assert_eq!(val.clamp_upper(150), 100);
+
+        let val: usize = 100;
+        assert_eq!(val.clamp_upper(100), 100);
+
+        let val: usize = 100;
+        assert_eq!(val.clamp_upper(50), 50);
+    }
+
+    #[test]
+    fn test_clamp_lower() {
+        let val: usize = 100;
+        assert_eq!(val.clamp_lower(150), 150);
+
+        let val: usize = 100;
+        assert_eq!(val.clamp_lower(100), 100);
+
+        let val: usize = 100;
+        assert_eq!(val.clamp_lower(50), 100);
     }
 }

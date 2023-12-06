@@ -7,10 +7,11 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
-use hashbrown::{HashMap, HashSet};
-use sysinfo::{ProcessStatus, System};
+use hashbrown::HashSet;
+use sysinfo::ProcessStatus;
 
 use super::{ProcessHarvest, UserTable};
+use crate::app::data_harvester::DataCollector;
 use crate::utils::error::{self, BottomError};
 use crate::Pid;
 
@@ -109,7 +110,7 @@ fn cpu_usage_calculation(prev_idle: &mut f64, prev_non_idle: &mut f64) -> error:
 fn get_linux_cpu_usage(
     stat: &Stat, cpu_usage: f64, cpu_fraction: f64, prev_proc_times: u64,
     use_current_cpu_total: bool,
-) -> (f64, u64) {
+) -> (f32, u64) {
     // Based heavily on https://stackoverflow.com/a/23376195 and https://stackoverflow.com/a/1424556
     let new_proc_times = stat.utime + stat.stime;
     let diff = (new_proc_times - prev_proc_times) as f64; // No try_from for u64 -> f64... oh well.
@@ -117,9 +118,12 @@ fn get_linux_cpu_usage(
     if cpu_usage == 0.0 {
         (0.0, new_proc_times)
     } else if use_current_cpu_total {
-        ((diff / cpu_usage) * 100.0, new_proc_times)
+        (((diff / cpu_usage) * 100.0) as f32, new_proc_times)
     } else {
-        ((diff / cpu_usage) * 100.0 * cpu_fraction, new_proc_times)
+        (
+            ((diff / cpu_usage) * 100.0 * cpu_fraction) as f32,
+            new_proc_times,
+        )
     }
 }
 
@@ -140,7 +144,7 @@ fn read_proc(
         let truncated_name = stat.comm.as_str();
         if let Ok(cmdline) = cmdline {
             if cmdline.is_empty() {
-                (format!("[{}]", truncated_name), truncated_name.to_string())
+                (format!("[{truncated_name}]"), truncated_name.to_string())
             } else {
                 (
                     cmdline.join(" "),
@@ -180,7 +184,7 @@ fn read_proc(
     );
     let parent_pid = Some(stat.ppid);
     let mem_usage_bytes = stat.rss_bytes();
-    let mem_usage_percent = mem_usage_bytes as f64 / total_memory as f64 * 100.0;
+    let mem_usage_percent = (mem_usage_bytes as f64 / total_memory as f64 * 100.0) as f32;
 
     // This can fail if permission is denied!
     let (total_read_bytes, total_write_bytes, read_bytes_per_sec, write_bytes_per_sec) =
@@ -246,6 +250,12 @@ fn read_proc(
             uid,
             user,
             time,
+            #[cfg(feature = "gpu")]
+            gpu_mem: 0,
+            #[cfg(feature = "gpu")]
+            gpu_mem_percent: 0.0,
+            #[cfg(feature = "gpu")]
+            gpu_util: 0,
         },
         new_process_times,
     ))
@@ -265,11 +275,21 @@ fn is_str_numeric(s: &str) -> bool {
     s.chars().all(|c| c.is_ascii_digit())
 }
 
-pub(crate) fn get_process_data(
-    sys: &System, prev_proc: PrevProc<'_>, pid_mapping: &mut HashMap<Pid, PrevProcDetails>,
-    proc_harvest_options: ProcHarvestOptions, time_difference_in_secs: u64, total_memory: u64,
-    user_table: &mut UserTable,
-) -> crate::utils::error::Result<Vec<ProcessHarvest>> {
+pub(crate) fn linux_process_data(
+    collector: &mut DataCollector, time_difference_in_secs: u64,
+) -> error::Result<Vec<ProcessHarvest>> {
+    let total_memory = collector.total_memory();
+    let prev_proc = PrevProc {
+        prev_idle: &mut collector.prev_idle,
+        prev_non_idle: &mut collector.prev_non_idle,
+    };
+    let proc_harvest_options = ProcHarvestOptions {
+        use_current_cpu_total: collector.use_current_cpu_total,
+        unnormalized_cpu: collector.unnormalized_cpu,
+    };
+    let pid_mapping = &mut collector.pid_mapping;
+    let user_table = &mut collector.user_table;
+
     let ProcHarvestOptions {
         use_current_cpu_total,
         unnormalized_cpu,
@@ -289,7 +309,7 @@ pub(crate) fn get_process_data(
     {
         if unnormalized_cpu {
             use sysinfo::SystemExt;
-            let num_processors = sys.cpus().len() as f64;
+            let num_processors = collector.sys.cpus().len() as f64;
 
             // Note we *divide* here because the later calculation divides `cpu_usage` - in effect,
             // multiplying over the number of cores.
@@ -312,7 +332,8 @@ pub(crate) fn get_process_data(
                     let pid = process.pid;
                     let prev_proc_details = pid_mapping.entry(pid).or_default();
 
-                    if let Ok((process_harvest, new_process_times)) = read_proc(
+                    #[allow(unused_mut)]
+                    if let Ok((mut process_harvest, new_process_times)) = read_proc(
                         prev_proc_details,
                         process,
                         cpu_usage,
@@ -322,6 +343,23 @@ pub(crate) fn get_process_data(
                         total_memory,
                         user_table,
                     ) {
+                        #[cfg(feature = "gpu")]
+                        if let Some(gpus) = &collector.gpu_pids {
+                            gpus.iter().for_each(|gpu| {
+                                // add mem/util for all gpus to pid
+                                if let Some((mem, util)) = gpu.get(&(pid as u32)) {
+                                    process_harvest.gpu_mem += mem;
+                                    process_harvest.gpu_util += util;
+                                }
+                            });
+                            if let Some(gpu_total_mem) = &collector.gpus_total_mem {
+                                process_harvest.gpu_mem_percent = (process_harvest.gpu_mem as f64
+                                    / *gpu_total_mem as f64
+                                    * 100.0)
+                                    as f32;
+                            }
+                        }
+
                         prev_proc_details.cpu_time = new_process_times;
                         prev_proc_details.total_read_bytes = process_harvest.total_read_bytes;
                         prev_proc_details.total_write_bytes = process_harvest.total_write_bytes;

@@ -2,7 +2,7 @@
 
 #[cfg(target_os = "windows")]
 use windows::Win32::{
-    Foundation::HANDLE,
+    Foundation::{CloseHandle, HANDLE},
     System::Threading::{
         OpenProcess, TerminateProcess, PROCESS_QUERY_INFORMATION, PROCESS_TERMINATE,
     },
@@ -27,13 +27,23 @@ impl Process {
     }
 
     fn kill(self) -> Result<(), String> {
-        // SAFETY: Windows API call, tread carefully with the args.
+        // SAFETY: Windows API call, this is safe as we are passing in the handle.
         let result = unsafe { TerminateProcess(self.0, 1) };
-        if result.0 == 0 {
+        if result.is_err() {
             return Err("process may have already been terminated.".to_string());
         }
 
         Ok(())
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for Process {
+    fn drop(&mut self) {
+        // SAFETY: Windows API call, this is safe as we are passing in the handle.
+        unsafe {
+            let _ = CloseHandle(self.0);
+        }
     }
 }
 
@@ -65,14 +75,10 @@ pub fn kill_process_given_pid(pid: Pid, signal: usize) -> crate::utils::error::R
 
         return if let Some(err_code) = err_code {
             Err(BottomError::GenericError(format!(
-                "Error code {} - {}",
-                err_code, err,
+                "Error code {err_code} - {err}"
             )))
         } else {
-            Err(BottomError::GenericError(format!(
-                "Error code ??? - {}",
-                err,
-            )))
+            Err(BottomError::GenericError(format!("Error code ??? - {err}")))
         };
     }
 
